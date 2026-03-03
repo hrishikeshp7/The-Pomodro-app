@@ -21,11 +21,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val preferencesManager = PreferencesManager(applicationContext)
+        val initialOnboardingCompleted = runBlocking { preferencesManager.onboardingCompleted.first() }
 
         setContent {
             val darkMode by preferencesManager.darkMode.collectAsState(initial = false)
             val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsState(
-                initial = runBlocking { preferencesManager.onboardingCompleted.first() }
+                initial = initialOnboardingCompleted
             )
 
             val timerViewModel: TimerViewModel = viewModel()

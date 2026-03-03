@@ -12,6 +12,7 @@ import com.pomodoro.app.util.PreferencesManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 data class TimerUiState(
     val timeLeftSeconds: Int = 25 * 60,
@@ -208,12 +209,12 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         }.timeInMillis
 
         val lastDate = preferencesManager.lastSessionDate.first()
-        val yesterday = today - 86400000L
+        val yesterday = today - TimeUnit.DAYS.toMillis(1)
 
         val newStreak = when {
             lastDate == today -> _uiState.value.currentStreak // Already counted today
             lastDate == yesterday -> _uiState.value.currentStreak + 1
-            else -> 1 // Streak broken or invalid date
+            else -> 1 // Streak broken (gap > 1 day or first session)
         }
 
         preferencesManager.setCurrentStreak(newStreak)

@@ -8,6 +8,7 @@ import com.pomodoro.app.data.model.PomodoroSession
 import com.pomodoro.app.data.repository.SessionRepository
 import kotlinx.coroutines.flow.*
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 data class AnalyticsUiState(
     val todaySessions: Int = 0,
@@ -56,7 +57,7 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun calculateDailyCounts(sessions: List<PomodoroSession>, weekStart: Long): List<Int> {
         val counts = MutableList(7) { 0 }
-        val dayMillis = 86400000L
+        val dayMillis = TimeUnit.DAYS.toMillis(1)
         for (session in sessions) {
             if (session.sessionType == "focus") {
                 val dayIndex = ((session.completedAt - weekStart) / dayMillis).toInt()
