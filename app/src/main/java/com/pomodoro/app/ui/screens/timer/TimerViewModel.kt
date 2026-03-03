@@ -213,8 +213,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         val newStreak = when {
             lastDate == today -> _uiState.value.currentStreak // Already counted today
             lastDate == yesterday -> _uiState.value.currentStreak + 1
-            lastDate < yesterday -> 1 // Streak broken
-            else -> _uiState.value.currentStreak + 1
+            else -> 1 // Streak broken or invalid date
         }
 
         preferencesManager.setCurrentStreak(newStreak)
