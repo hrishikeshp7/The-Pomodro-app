@@ -140,13 +140,13 @@ fun WeeklyChart(dailyCounts: List<Int>) {
         cal.add(Calendar.DAY_OF_YEAR, -6)
         List(7) { index ->
             val dayName = when (cal.get(Calendar.DAY_OF_WEEK)) {
-                Calendar.MONDAY -> "M"
-                Calendar.TUESDAY -> "T"
-                Calendar.WEDNESDAY -> "W"
-                Calendar.THURSDAY -> "T"
-                Calendar.FRIDAY -> "F"
-                Calendar.SATURDAY -> "S"
-                Calendar.SUNDAY -> "S"
+                Calendar.MONDAY -> "Mo"
+                Calendar.TUESDAY -> "Tu"
+                Calendar.WEDNESDAY -> "We"
+                Calendar.THURSDAY -> "Th"
+                Calendar.FRIDAY -> "Fr"
+                Calendar.SATURDAY -> "Sa"
+                Calendar.SUNDAY -> "Su"
                 else -> ""
             }
             cal.add(Calendar.DAY_OF_YEAR, 1)
