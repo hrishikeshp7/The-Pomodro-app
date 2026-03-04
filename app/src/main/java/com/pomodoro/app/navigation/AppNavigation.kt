@@ -1,6 +1,7 @@
 package com.pomodoro.app.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.History
@@ -13,7 +14,10 @@ import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -54,6 +58,7 @@ fun AppNavigation(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
 
     val bottomNavItems = remember {
         listOf(
@@ -63,10 +68,51 @@ fun AppNavigation(
             BottomNavItem(Screen.Settings, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
         )
     }
+    val bottomNavRoutes = remember(bottomNavItems) { bottomNavItems.map { it.screen.route } }
+    val swipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
+
+    fun navigateToBottomRoute(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     val showBottomBar = currentDestination?.hierarchy?.any { dest ->
         bottomNavItems.any { it.screen.route == dest.route }
     } == true
+
+    val swipeModifier = if (currentRoute in bottomNavRoutes) {
+        Modifier.pointerInput(currentRoute) {
+            var totalHorizontalDrag = 0f
+            detectHorizontalDragGestures(
+                onHorizontalDrag = { change, dragAmount ->
+                    totalHorizontalDrag += dragAmount
+                    change.consume()
+                },
+                onDragCancel = {
+                    totalHorizontalDrag = 0f
+                },
+                onDragEnd = {
+                    val currentIndex = bottomNavRoutes.indexOf(currentRoute)
+                    val targetIndex = when {
+                        totalHorizontalDrag <= -swipeThresholdPx && currentIndex < bottomNavRoutes.lastIndex -> currentIndex + 1
+                        totalHorizontalDrag >= swipeThresholdPx && currentIndex > 0 -> currentIndex - 1
+                        else -> -1
+                    }
+                    if (targetIndex != -1) {
+                        navigateToBottomRoute(bottomNavRoutes[targetIndex])
+                    }
+                    totalHorizontalDrag = 0f
+                }
+            )
+        }
+    } else {
+        Modifier
+    }
 
     Scaffold(
         bottomBar = {
@@ -89,13 +135,7 @@ fun AppNavigation(
                             label = { Text(item.label, style = MaterialTheme.typography.labelMedium) },
                             selected = selected,
                             onClick = {
-                                navController.navigate(item.screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navigateToBottomRoute(item.screen.route)
                             }
                         )
                     }
@@ -106,7 +146,9 @@ fun AppNavigation(
         NavHost(
             navController = navController,
             startDestination = if (startOnboarding) Screen.Onboarding.route else Screen.Timer.route,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier
+                .padding(paddingValues)
+                .then(swipeModifier)
         ) {
             composable(Screen.Onboarding.route) {
                 OnboardingScreen(
