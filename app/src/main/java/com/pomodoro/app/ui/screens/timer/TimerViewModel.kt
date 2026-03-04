@@ -8,7 +8,9 @@ import com.pomodoro.app.data.db.AppDatabase
 import com.pomodoro.app.data.model.PomodoroSession
 import com.pomodoro.app.data.model.Task
 import com.pomodoro.app.data.repository.SessionRepository
+import com.pomodoro.app.util.HapticManager
 import com.pomodoro.app.util.PreferencesManager
+import com.pomodoro.app.util.SoundManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -28,13 +30,17 @@ data class TimerUiState(
     val shortBreakDuration: Int = 5,
     val longBreakDuration: Int = 15,
     val currentStreak: Int = 0,
-    val showSessionComplete: Boolean = false
+    val showSessionComplete: Boolean = false,
+    val soundEnabled: Boolean = true
 )
 
 class TimerViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     private val sessionRepository = SessionRepository(db.sessionDao())
     private val preferencesManager = PreferencesManager(application)
+
+    val hapticManager = HapticManager(application)
+    val soundManager = SoundManager(application)
 
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
@@ -78,6 +84,14 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                         currentStreak = state.currentStreak
                     )
                 }
+            }
+        }
+
+        // Observe soundEnabled preference
+        viewModelScope.launch {
+            preferencesManager.soundEnabled.collect { enabled ->
+                _uiState.value = _uiState.value.copy(soundEnabled = enabled)
+                soundManager.setSoundEnabled(enabled)
             }
         }
     }
@@ -136,6 +150,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissSessionComplete() {
+        hapticManager.buttonClick()
         _uiState.value = _uiState.value.copy(showSessionComplete = false)
     }
 
@@ -143,7 +158,10 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         val state = _uiState.value
 
         if (!state.isBreak) {
-            // Completed a focus session
+            // Completed a focus session — triumphant feedback
+            hapticManager.sessionComplete()
+            soundManager.playSessionComplete()
+
             viewModelScope.launch {
                 sessionRepository.insertSession(
                     PomodoroSession(
@@ -162,6 +180,9 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 isPaused = false
             )
         } else {
+            // Break ended — gentle nudge back to focus
+            hapticManager.timerStart()
+            soundManager.playTimerStart()
             _uiState.value = state.copy(
                 isRunning = false,
                 isPaused = false
@@ -184,7 +205,12 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 isPaused = false
             )
         } else {
-            // Move to break
+            // Move to break — play break sound after session complete sound
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(800)
+                hapticManager.breakStart()
+                soundManager.playBreakStart()
+            }
             val completed = state.completedSessions
             val isLong = completed > 0 && completed % state.sessionsBeforeLongBreak == 0
             val breakDuration = if (isLong) state.longBreakDuration else state.shortBreakDuration
@@ -225,5 +251,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         countDownTimer?.cancel()
+        hapticManager.release()
+        soundManager.release()
     }
 }

@@ -89,7 +89,10 @@ fun TimerScreen(
         // Selected task chip
         if (uiState.selectedTask != null) {
             AssistChip(
-                onClick = onNavigateToTasks,
+                onClick = {
+                    viewModel.hapticManager.buttonClick()
+                    onNavigateToTasks()
+                },
                 label = { Text(uiState.selectedTask!!.title) },
                 leadingIcon = {
                     Icon(
@@ -100,17 +103,22 @@ fun TimerScreen(
                 }
             )
         } else {
-            TextButton(onClick = onNavigateToTasks) {
+            TextButton(onClick = {
+                viewModel.hapticManager.buttonClick()
+                onNavigateToTasks()
+            }) {
                 Text("Select a task")
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Timer Controls
+        // Timer Controls — pass managers directly
         TimerControls(
             isRunning = uiState.isRunning,
             isPaused = uiState.isPaused,
+            hapticManager = viewModel.hapticManager,
+            soundManager = viewModel.soundManager,
             onStart = { viewModel.startTimer() },
             onPause = { viewModel.pauseTimer() },
             onReset = { viewModel.resetTimer() },
