@@ -1,5 +1,6 @@
 package com.pomodoro.app.ui.screens.settings
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,8 +9,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -146,6 +149,19 @@ fun DurationSetting(
     suffix: String,
     onValueChange: (Int) -> Unit
 ) {
+    val view = LocalView.current
+    val isDenseSlider = range.last - range.first > 20
+    val hapticConstant = if (isDenseSlider) {
+        HapticFeedbackConstants.CLOCK_TICK
+    } else {
+        HapticFeedbackConstants.KEYBOARD_TAP
+    }
+    var lastTickValue by remember(label) { mutableIntStateOf(value) }
+
+    LaunchedEffect(value) {
+        lastTickValue = value
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -169,7 +185,14 @@ fun DurationSetting(
             Spacer(modifier = Modifier.height(8.dp))
             Slider(
                 value = value.toFloat(),
-                onValueChange = { onValueChange(it.toInt()) },
+                onValueChange = { rawValue ->
+                    val snappedValue = rawValue.roundToInt().coerceIn(range.first, range.last)
+                    if (snappedValue != lastTickValue) {
+                        lastTickValue = snappedValue
+                        view.performHapticFeedback(hapticConstant)
+                        onValueChange(snappedValue)
+                    }
+                },
                 valueRange = range.first.toFloat()..range.last.toFloat(),
                 steps = range.last - range.first - 1
             )
