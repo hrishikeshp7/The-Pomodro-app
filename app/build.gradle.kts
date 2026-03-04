@@ -5,6 +5,9 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val ciVersionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
+val ciVersionName = findProperty("VERSION_NAME") as String?
+
 android {
     namespace = "com.pomodoro.app"
     compileSdk = 35
@@ -13,8 +16,8 @@ android {
         applicationId = "com.pomodoro.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = ciVersionCode ?: 1
+        versionName = ciVersionName ?: "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
