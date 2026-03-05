@@ -1,7 +1,10 @@
 package com.pomodoro.app.navigation
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.History
@@ -14,10 +17,12 @@ import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -71,6 +76,9 @@ fun AppNavigation(
     val swipeThresholdPx = with(LocalDensity.current) { 80.dp.toPx() }
 
     fun navigateToBottomRoute(route: String) {
+        if (currentRoute == route) return
+        if (navController.currentBackStackEntry?.lifecycle?.currentState != Lifecycle.State.RESUMED) return
+
         navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) {
                 saveState = true
@@ -145,9 +153,15 @@ fun AppNavigation(
         NavHost(
             navController = navController,
             startDestination = if (startOnboarding) Screen.Onboarding.route else Screen.Timer.route,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
             modifier = Modifier
                 .padding(paddingValues)
                 .then(swipeModifier)
+                .background(MaterialTheme.colorScheme.background)
+                .clipToBounds()
         ) {
             composable(Screen.Onboarding.route) {
                 OnboardingScreen(
