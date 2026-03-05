@@ -1,4 +1,4 @@
-name: Build And Release APK
+name: Release - Build & Publish APK
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   release:
-    name: Build Release APK And Publish Release
+    name: Build Release APK and Publish GitHub Release
     runs-on: ubuntu-latest
 
     steps:
