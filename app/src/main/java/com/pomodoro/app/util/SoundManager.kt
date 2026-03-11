@@ -23,6 +23,17 @@ class SoundManager(private val context: Context) {
     private val sampleRate = 44100
     private var soundEnabled = true
 
+    private val audioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+
+    private val audioFormat = AudioFormat.Builder()
+        .setSampleRate(sampleRate)
+        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+        .build()
+
     fun setSoundEnabled(enabled: Boolean) {
         soundEnabled = enabled
     }
@@ -120,29 +131,24 @@ class SoundManager(private val context: Context) {
         val numSamples = (sampleRate * durationMs / 1000.0).toInt()
         val buffer = ShortArray(numSamples)
 
+        val angularFrequency = 2.0 * PI * frequency / sampleRate
+        val maxAmplitude = Short.MAX_VALUE * volume
+        val fadeOutStart = numSamples * 0.7
+        val fadeOutDuration = numSamples * 0.3
+        val attackEnd = numSamples * 0.05
+
         for (i in 0 until numSamples) {
-            val sample = sin(2.0 * PI * frequency * i / sampleRate)
+            val sample = sin(angularFrequency * i)
             val envelope = when {
-                fadeOut && i > numSamples * 0.7 -> {
-                    val fadeProgress = (i - numSamples * 0.7) / (numSamples * 0.3)
+                fadeOut && i > fadeOutStart -> {
+                    val fadeProgress = (i - fadeOutStart) / fadeOutDuration
                     1.0 - fadeProgress
                 }
-                i < numSamples * 0.05 -> i / (numSamples * 0.05) // attack
+                i < attackEnd -> i / attackEnd // attack
                 else -> 1.0
             }
-            buffer[i] = (sample * envelope * Short.MAX_VALUE * volume).toInt().toShort()
+            buffer[i] = (sample * envelope * maxAmplitude).toInt().toShort()
         }
-
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-
-        val audioFormat = AudioFormat.Builder()
-            .setSampleRate(sampleRate)
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .build()
 
         val minBufferSize = AudioTrack.getMinBufferSize(
             sampleRate,
