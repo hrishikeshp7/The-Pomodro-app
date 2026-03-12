@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -36,9 +37,13 @@ fun TimerDisplay(
     val arcColor = if (isBreak) tertiaryColor else primaryColor
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
 
-    val minutes = timeLeftSeconds / 60
-    val seconds = timeLeftSeconds % 60
-    val timeText = String.format("%02d:%02d", minutes, seconds)
+    val timeText = remember(timeLeftSeconds) {
+        val minutes = timeLeftSeconds / 60
+        val seconds = timeLeftSeconds % 60
+        val mStr = minutes.toString().padStart(2, '0')
+        val sStr = seconds.toString().padStart(2, '0')
+        "$mStr:$sStr"
+    }
 
     Box(
         contentAlignment = Alignment.Center,
