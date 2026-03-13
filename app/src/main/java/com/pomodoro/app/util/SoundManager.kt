@@ -137,14 +137,20 @@ class SoundManager(private val context: Context) {
         val fadeOutDuration = numSamples * 0.3
         val attackEnd = numSamples * 0.05
 
+        // Pre-compute invariants to avoid costly divisions/multiplications in the loop
+        val invFadeOutDuration = 1.0 / fadeOutDuration
+        val invAttackEnd = 1.0 / attackEnd
+        var phase = 0.0
+
         for (i in 0 until numSamples) {
-            val sample = sin(angularFrequency * i)
+            val sample = sin(phase)
+            phase += angularFrequency
             val envelope = when {
                 fadeOut && i > fadeOutStart -> {
-                    val fadeProgress = (i - fadeOutStart) / fadeOutDuration
+                    val fadeProgress = (i - fadeOutStart) * invFadeOutDuration
                     1.0 - fadeProgress
                 }
-                i < attackEnd -> i / attackEnd // attack
+                i < attackEnd -> i * invAttackEnd // attack
                 else -> 1.0
             }
             buffer[i] = (sample * envelope * maxAmplitude).toInt().toShort()
