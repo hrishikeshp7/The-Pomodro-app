@@ -37,35 +37,38 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             add(Calendar.DAY_OF_YEAR, -6)
         }.timeInMillis
 
-        combine(
-            repository.getFocusSessionCountSince(todayStart),
-            repository.getTotalFocusMinutesSince(todayStart),
-            repository.getFocusSessionCountSince(weekStart),
-            repository.getTotalFocusMinutesSince(weekStart),
-            repository.getSessionsSince(weekStart)
-        ) { todaySessions, todayMinutes, weekSessions, weekMinutes, weeklySessionsList ->
-            val dailyCounts = calculateDailyCounts(weeklySessionsList, weekStart)
-            AnalyticsUiState(
-                todaySessions = todaySessions,
-                todayMinutes = todayMinutes ?: 0,
-                weekSessions = weekSessions,
-                weekMinutes = weekMinutes ?: 0,
-                dailyCounts = dailyCounts
-            )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
-    }
+        repository.getSessionsSince(weekStart).map { weeklySessionsList ->
+            var todaySessions = 0
+            var todayMinutes = 0
+            var weekSessions = 0
+            var weekMinutes = 0
+            val counts = MutableList(7) { 0 }
+            val dayMillis = TimeUnit.DAYS.toMillis(1)
 
-    private fun calculateDailyCounts(sessions: List<PomodoroSession>, weekStart: Long): List<Int> {
-        val counts = MutableList(7) { 0 }
-        val dayMillis = TimeUnit.DAYS.toMillis(1)
-        for (session in sessions) {
-            if (session.sessionType == "focus") {
-                val dayIndex = ((session.completedAt - weekStart) / dayMillis).toInt()
-                if (dayIndex in 0..6) {
-                    counts[dayIndex]++
+            for (session in weeklySessionsList) {
+                if (session.sessionType == "focus") {
+                    weekSessions++
+                    weekMinutes += session.durationMinutes
+
+                    if (session.completedAt >= todayStart) {
+                        todaySessions++
+                        todayMinutes += session.durationMinutes
+                    }
+
+                    val dayIndex = ((session.completedAt - weekStart) / dayMillis).toInt()
+                    if (dayIndex in 0..6) {
+                        counts[dayIndex]++
+                    }
                 }
             }
-        }
-        return counts
+
+            AnalyticsUiState(
+                todaySessions = todaySessions,
+                todayMinutes = todayMinutes,
+                weekSessions = weekSessions,
+                weekMinutes = weekMinutes,
+                dailyCounts = counts
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
     }
 }
