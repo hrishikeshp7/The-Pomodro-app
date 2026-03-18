@@ -5,3 +5,7 @@
 ## 2024-03-22 - Avoid Over-Querying DB via Flow Combinations
 **Learning:** Using `combine` on multiple Room database flows to compute related metrics causes redundant SQL queries and multiple re-emissions for every DB change. `AnalyticsViewModel` was issuing 5 separate queries whenever a session updated.
 **Action:** When computing multiple related statistics (e.g., today vs. week metrics), fetch the largest necessary dataset in a single Room query and derive the subsets in memory using `.map { }`.
+
+## 2025-01-20 - Use collectAsStateWithLifecycle in Compose
+**Learning:** Using `collectAsState()` for Flow collections in Jetpack Compose UI continues to collect even when the app is in the background or the screen is not visible (lifecycle drops below STARTED), wasting resources.
+**Action:** Prefer `collectAsStateWithLifecycle()` from `androidx.lifecycle:lifecycle-runtime-compose` to ensure UI collection stops appropriately, optimizing CPU and memory usage when the screen is not actively viewed.
