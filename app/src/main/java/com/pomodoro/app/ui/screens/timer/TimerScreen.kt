@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pomodoro.app.ui.components.TimerControls
 import com.pomodoro.app.ui.components.TimerDisplay
 
@@ -22,7 +23,8 @@ fun TimerScreen(
     onNavigateToTasks: () -> Unit,
     viewModel: TimerViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Bolt Optimization: Using collectAsStateWithLifecycle to stop UI collection when lifecycle drops below STARTED
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

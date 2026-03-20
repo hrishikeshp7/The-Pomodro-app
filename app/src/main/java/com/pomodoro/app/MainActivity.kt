@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pomodoro.app.navigation.AppNavigation
 import com.pomodoro.app.ui.screens.timer.TimerViewModel
 import com.pomodoro.app.ui.theme.PomodoroTheme
@@ -24,9 +25,9 @@ class MainActivity : ComponentActivity() {
         val initialOnboardingCompleted = runBlocking { preferencesManager.onboardingCompleted.first() }
 
         setContent {
-            val darkMode by preferencesManager.darkMode.collectAsState(initial = false)
-            val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsState(
-                initial = initialOnboardingCompleted
+            val darkMode by preferencesManager.darkMode.collectAsStateWithLifecycle(initialValue = false)
+            val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsStateWithLifecycle(
+                initialValue = initialOnboardingCompleted
             )
 
             val timerViewModel: TimerViewModel = viewModel()

@@ -14,13 +14,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.Calendar
 
 @Composable
 fun AnalyticsScreen(
     viewModel: AnalyticsViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Bolt Optimization: Using collectAsStateWithLifecycle to stop UI collection when lifecycle drops below STARTED
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
