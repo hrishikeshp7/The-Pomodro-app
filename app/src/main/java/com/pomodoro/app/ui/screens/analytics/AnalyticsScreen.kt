@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.Calendar
 
@@ -20,7 +21,9 @@ import java.util.Calendar
 fun AnalyticsScreen(
     viewModel: AnalyticsViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Performance Optimization: lifecycle-aware flow collection to prevent unnecessary re-renders
+    // and resource usage when this screen is not active.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

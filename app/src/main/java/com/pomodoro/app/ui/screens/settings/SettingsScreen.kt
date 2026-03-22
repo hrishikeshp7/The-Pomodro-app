@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.roundToInt
 
@@ -18,7 +19,9 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Performance Optimization: lifecycle-aware flow collection to prevent unnecessary re-renders
+    // and resource usage when this screen is not active.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
