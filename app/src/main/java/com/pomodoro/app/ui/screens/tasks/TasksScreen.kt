@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomodoro.app.data.model.Task
 
@@ -25,7 +26,9 @@ fun TasksScreen(
     onTaskSelected: (Task) -> Unit,
     viewModel: TasksViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // ⚡ Bolt Optimization: Using collectAsStateWithLifecycle to stop UI updates when
+    // the screen is in the background, conserving battery and CPU cycles.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
