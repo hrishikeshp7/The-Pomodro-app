@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomodoro.app.navigation.AppNavigation
@@ -24,9 +25,12 @@ class MainActivity : ComponentActivity() {
         val initialOnboardingCompleted = runBlocking { preferencesManager.onboardingCompleted.first() }
 
         setContent {
-            val darkMode by preferencesManager.darkMode.collectAsState(initial = false)
-            val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsState(
-                initial = initialOnboardingCompleted
+            // ⚡ Bolt Optimization: Use collectAsStateWithLifecycle instead of collectAsState
+            // This ensures flow collection pauses when the UI drops below STARTED state,
+            // saving CPU/battery and preventing unnecessary re-renders in the background.
+            val darkMode by preferencesManager.darkMode.collectAsStateWithLifecycle(initialValue = false)
+            val onboardingCompleted by preferencesManager.onboardingCompleted.collectAsStateWithLifecycle(
+                initialValue = initialOnboardingCompleted
             )
 
             val timerViewModel: TimerViewModel = viewModel()

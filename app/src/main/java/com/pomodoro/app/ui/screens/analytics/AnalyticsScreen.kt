@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -20,7 +21,10 @@ import java.util.Calendar
 fun AnalyticsScreen(
     viewModel: AnalyticsViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // ⚡ Bolt Optimization: Use collectAsStateWithLifecycle instead of collectAsState
+    // This ensures flow collection pauses when the UI drops below STARTED state,
+    // saving CPU/battery and preventing unnecessary re-renders in the background.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

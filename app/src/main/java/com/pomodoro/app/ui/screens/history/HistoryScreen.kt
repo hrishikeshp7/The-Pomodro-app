@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -17,7 +18,10 @@ import java.util.*
 fun HistoryScreen(
     viewModel: HistoryViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // ⚡ Bolt Optimization: Use collectAsStateWithLifecycle instead of collectAsState
+    // This ensures flow collection pauses when the UI drops below STARTED state,
+    // saving CPU/battery and preventing unnecessary re-renders in the background.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault()) }
 
     Column(
