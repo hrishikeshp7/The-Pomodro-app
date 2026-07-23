@@ -34,6 +34,15 @@ A modern, minimal Pomodoro productivity app for Android built with Jetpack Compo
 ./gradlew assembleDebug
 ```
 
+### Signed release APK (GitHub Actions)
+
+The release workflow now builds a signed APK. Add these repository secrets before running it:
+
+- `ANDROID_KEYSTORE_BASE64` — Base64 content of your keystore file
+- `ANDROID_KEYSTORE_PASSWORD` — Keystore password
+- `ANDROID_KEY_ALIAS` — Key alias inside the keystore
+- `ANDROID_KEY_PASSWORD` — Key password
+
 ## Project Structure
 
 ```
@@ -62,4 +71,3 @@ app/src/main/java/com/pomodoro/app/
 ## License
 
 GNU General Public License v3.0 (GPL-3.0) - see [LICENSE](LICENSE)
-
