@@ -45,7 +45,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release")
+            // Fall back to the debug signing configuration if the release signing configuration
+            // is not available/configured, preventing the generation of unsigned (invalid) APKs.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.findByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,7 +23,8 @@ fun TimerScreen(
     onNavigateToTasks: () -> Unit,
     viewModel: TimerViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Optimization: Use collectAsStateWithLifecycle to stop flow collection when the screen is not visible.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier

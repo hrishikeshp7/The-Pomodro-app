@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -17,7 +18,8 @@ import java.util.*
 fun HistoryScreen(
     viewModel: HistoryViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    // Optimization: Use collectAsStateWithLifecycle to stop flow collection when the screen is not visible.
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault()) }
 
     Column(
