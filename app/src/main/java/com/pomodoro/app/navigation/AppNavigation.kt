@@ -150,6 +150,7 @@ fun AppNavigation(
             }
         }
     ) { paddingValues ->
+        // Use direct, zero-duration transitions to completely avoid overlapping and lag
         NavHost(
             navController = navController,
             startDestination = if (startOnboarding) Screen.Onboarding.route else Screen.Timer.route,
@@ -163,7 +164,13 @@ fun AppNavigation(
                 .background(MaterialTheme.colorScheme.background)
                 .clipToBounds()
         ) {
-            composable(Screen.Onboarding.route) {
+            composable(
+                route = Screen.Onboarding.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
                 OnboardingScreen(
                     onComplete = {
                         onOnboardingComplete()
@@ -173,7 +180,13 @@ fun AppNavigation(
                     }
                 )
             }
-            composable(Screen.Timer.route) {
+            composable(
+                route = Screen.Timer.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
                 TimerScreen(
                     onNavigateToTasks = {
                         navController.navigate(Screen.Tasks.route)
@@ -181,7 +194,13 @@ fun AppNavigation(
                     viewModel = timerViewModel
                 )
             }
-            composable(Screen.Tasks.route) {
+            composable(
+                route = Screen.Tasks.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
                 TasksScreen(
                     onTaskSelected = { task ->
                         timerViewModel.selectTask(task)
@@ -189,13 +208,31 @@ fun AppNavigation(
                     }
                 )
             }
-            composable(Screen.History.route) {
+            composable(
+                route = Screen.History.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
                 HistoryScreen()
             }
-            composable(Screen.Analytics.route) {
+            composable(
+                route = Screen.Analytics.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
                 AnalyticsScreen()
             }
-            composable(Screen.Settings.route) {
+            composable(
+                route = Screen.Settings.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None }
+            ) {
                 SettingsScreen()
             }
         }

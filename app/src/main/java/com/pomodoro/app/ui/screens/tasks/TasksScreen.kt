@@ -18,7 +18,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pomodoro.app.data.model.DefaultPresets
 import com.pomodoro.app.data.model.Task
+import com.pomodoro.app.data.model.TimerPreset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,7 +28,6 @@ fun TasksScreen(
     onTaskSelected: (Task) -> Unit,
     viewModel: TasksViewModel = viewModel()
 ) {
-    // Optimization: Use collectAsStateWithLifecycle to stop flow collection when the screen is not visible.
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
@@ -34,30 +35,18 @@ fun TasksScreen(
             .fillMaxSize()
             .padding(24.dp)
     ) {
-        Text(
-            text = "Tasks",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Add task input
         Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = uiState.newTaskTitle,
-                onValueChange = { viewModel.updateNewTaskTitle(it) },
-                placeholder = { Text("Add a new task...") },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
+            Text(
+                text = "Tasks",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.width(12.dp))
             FilledIconButton(
-                onClick = { viewModel.addTask() },
+                onClick = { viewModel.showAddTaskDialog() },
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "Add task")
@@ -79,6 +68,57 @@ fun TasksScreen(
                 )
             }
         }
+    }
+
+    if (uiState.isAddingTask) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideAddTaskDialog() },
+            title = { Text("New Task") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = uiState.newTaskTitle,
+                        onValueChange = { viewModel.updateNewTaskTitle(it) },
+                        label = { Text("Task Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Select Profile:", style = MaterialTheme.typography.labelLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val allPresets = DefaultPresets.all + uiState.customPresets
+
+                    // Simple dropdown or list of chips for presets
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 200.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(allPresets) { preset ->
+                            FilterChip(
+                                selected = uiState.selectedPreset == preset,
+                                onClick = { viewModel.updateSelectedPreset(preset) },
+                                label = { Text(preset.name) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.addTask() },
+                    enabled = uiState.newTaskTitle.isNotBlank()
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.hideAddTaskDialog() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -117,14 +157,22 @@ fun TaskItem(
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
-                       else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+                    color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
+                           else MaterialTheme.colorScheme.onSurface
+                )
+                if (task.presetName != null) {
+                    Text(
+                        text = "Profile: ${task.presetName}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
