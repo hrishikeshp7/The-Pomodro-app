@@ -9,7 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,6 +43,8 @@ fun TimerControls(
         label = "main_btn_scale"
     )
 
+    var showResetDialog by remember { mutableStateOf(false) }
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -51,9 +53,13 @@ fun TimerControls(
         // Reset button
         FilledTonalIconButton(
             onClick = {
-                hapticManager.timerReset()
-                soundManager.playTimerReset()
-                onReset()
+                if (isRunning && !isPaused) {
+                    showResetDialog = true
+                } else {
+                    hapticManager.timerReset()
+                    soundManager.playTimerReset()
+                    onReset()
+                }
             },
             modifier = Modifier.size(52.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -61,7 +67,7 @@ fun TimerControls(
             )
         ) {
             Icon(
-                imageVector = Icons.Filled.Stop,
+                imageVector = Icons.Filled.Refresh,
                 contentDescription = "Reset",
                 modifier = Modifier.size(24.dp)
             )
@@ -120,5 +126,32 @@ fun TimerControls(
                 modifier = Modifier.size(24.dp)
             )
         }
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Reset Timer?") },
+            text = { Text("Are you sure you want to reset the current timer? Your progress for this session will be lost.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        hapticManager.timerReset()
+                        soundManager.playTimerReset()
+                        onReset()
+                    }
+                ) {
+                    Text("Reset")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showResetDialog = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

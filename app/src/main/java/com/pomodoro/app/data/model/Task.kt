@@ -9,5 +9,10 @@ data class Task(
     val id: Long = 0,
     val title: String,
     val isCompleted: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val focusDuration: Int = 25,
+    val shortBreakDuration: Int = 5,
+    val longBreakDuration: Int = 15,
+    val sessionsBeforeLongBreak: Int = 4,
+    val presetName: String? = null
 )

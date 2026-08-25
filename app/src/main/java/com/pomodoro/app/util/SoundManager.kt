@@ -38,14 +38,10 @@ class SoundManager(private val context: Context) {
         soundEnabled = enabled
     }
 
-    /** Crisp double-beep — played when timer starts */
+    /** No sound played when timer starts, only haptics will be used now */
     fun playTimerStart() {
-        if (!soundEnabled) return
-        scope.launch {
-            playTone(frequency = 880.0, durationMs = 80, volume = 0.7f)
-            Thread.sleep(60)
-            playTone(frequency = 1100.0, durationMs = 120, volume = 0.8f)
-        }
+        // User requested no sound, just soft haptic vibration.
+        // HapticManager handles the vibration.
     }
 
     /** Soft single click — for pause */

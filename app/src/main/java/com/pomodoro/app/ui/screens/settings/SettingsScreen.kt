@@ -1,7 +1,12 @@
 package com.pomodoro.app.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -9,18 +14,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pomodoro.app.data.model.TimerPreset
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     // Optimization: Use collectAsStateWithLifecycle to stop flow collection when the screen is not visible.
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -55,6 +66,48 @@ fun SettingsScreen(
                     label = { Text(preset.name, style = MaterialTheme.typography.labelMedium) }
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Custom profiles
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Custom Profiles",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = { viewModel.showCreateProfileDialog() }) {
+                Text("Create")
+            }
+        }
+
+        if (uiState.customPresets.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(uiState.customPresets) { preset ->
+                    FilterChip(
+                        selected = uiState.focusDuration == preset.focusMinutes &&
+                                  uiState.shortBreakDuration == preset.shortBreakMinutes,
+                        onClick = { viewModel.applyPreset(preset) },
+                        label = { Text(preset.name, style = MaterialTheme.typography.labelMedium) }
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = "No custom profiles created.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -133,12 +186,77 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // App info
-        Text(
-            text = "Pomodoro Focus v1.0",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+        // App info and GitHub link
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Pomodoro Focus v1.0",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/hrishikeshp7/The-Pomodro-app"))
+                        context.startActivity(intent)
+                    }
+                    .padding(8.dp)
+            ) {
+                // We'll use a simple text representation if there's no drawable
+                Text(
+                    text = "GitHub Repository",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+
+    if (uiState.isCreatingProfile) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideCreateProfileDialog() },
+            title = { Text("New Profile") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = uiState.newProfileName,
+                        onValueChange = { viewModel.updateNewProfileName(it) },
+                        label = { Text("Profile Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Current settings will be saved to this profile:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${uiState.focusDuration}m focus / ${uiState.shortBreakDuration}m short break / ${uiState.longBreakDuration}m long break",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.saveCustomProfile() },
+                    enabled = uiState.newProfileName.isNotBlank()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.hideCreateProfileDialog() }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

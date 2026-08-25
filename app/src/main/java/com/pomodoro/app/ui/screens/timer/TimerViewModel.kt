@@ -47,6 +47,12 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     private var countDownTimer: CountDownTimer? = null
 
+    // Track global settings vs task specific settings
+    private var globalFocusDuration = 25
+    private var globalShortBreak = 5
+    private var globalLongBreak = 15
+    private var globalSessionsBeforeLongBreak = 4
+
     init {
         viewModelScope.launch {
             combine(
@@ -56,11 +62,23 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 preferencesManager.sessionsBeforeLongBreak,
                 preferencesManager.currentStreak
             ) { focus, shortBreak, longBreak, sessions, streak ->
+                globalFocusDuration = focus
+                globalShortBreak = shortBreak
+                globalLongBreak = longBreak
+                globalSessionsBeforeLongBreak = sessions
+
+                // If a task is selected, we use the task's settings, otherwise global
+                val currentTask = _uiState.value.selectedTask
+                val activeFocus = currentTask?.focusDuration ?: focus
+                val activeShortBreak = currentTask?.shortBreakDuration ?: shortBreak
+                val activeLongBreak = currentTask?.longBreakDuration ?: longBreak
+                val activeSessions = currentTask?.sessionsBeforeLongBreak ?: sessions
+
                 _uiState.value.copy(
-                    focusDuration = focus,
-                    shortBreakDuration = shortBreak,
-                    longBreakDuration = longBreak,
-                    sessionsBeforeLongBreak = sessions,
+                    focusDuration = activeFocus,
+                    shortBreakDuration = activeShortBreak,
+                    longBreakDuration = activeLongBreak,
+                    sessionsBeforeLongBreak = activeSessions,
                     currentStreak = streak
                 )
             }.collect { state ->
@@ -97,7 +115,27 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectTask(task: Task?) {
-        _uiState.value = _uiState.value.copy(selectedTask = task)
+        val focus = task?.focusDuration ?: globalFocusDuration
+        val shortBreak = task?.shortBreakDuration ?: globalShortBreak
+        val longBreak = task?.longBreakDuration ?: globalLongBreak
+        val sessions = task?.sessionsBeforeLongBreak ?: globalSessionsBeforeLongBreak
+
+        val totalSec = focus * 60
+
+        _uiState.value = _uiState.value.copy(
+            selectedTask = task,
+            focusDuration = focus,
+            shortBreakDuration = shortBreak,
+            longBreakDuration = longBreak,
+            sessionsBeforeLongBreak = sessions,
+            timeLeftSeconds = totalSec,
+            totalSeconds = totalSec,
+            isBreak = false,
+            isLongBreak = false,
+            isRunning = false,
+            isPaused = false
+        )
+        countDownTimer?.cancel()
     }
 
     fun startTimer() {
@@ -182,7 +220,6 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             // Break ended — gentle nudge back to focus
             hapticManager.timerStart()
-            soundManager.playTimerStart()
             _uiState.value = state.copy(
                 isRunning = false,
                 isPaused = false

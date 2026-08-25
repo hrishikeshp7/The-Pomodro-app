@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONObject
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -21,6 +23,7 @@ class PreferencesManager(private val context: Context) {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val CURRENT_STREAK = intPreferencesKey("current_streak")
         val LAST_SESSION_DATE = longPreferencesKey("last_session_date")
+        val CUSTOM_PROFILES = stringPreferencesKey("custom_profiles_json")
     }
 
     val focusDuration: Flow<Int> = context.dataStore.data.map { it[Keys.FOCUS_DURATION] ?: 25 }
@@ -32,6 +35,7 @@ class PreferencesManager(private val context: Context) {
     val onboardingCompleted: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }
     val currentStreak: Flow<Int> = context.dataStore.data.map { it[Keys.CURRENT_STREAK] ?: 0 }
     val lastSessionDate: Flow<Long> = context.dataStore.data.map { it[Keys.LAST_SESSION_DATE] ?: 0L }
+    val customProfiles: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PROFILES] ?: "[]" }
 
     suspend fun setFocusDuration(minutes: Int) {
         context.dataStore.edit { it[Keys.FOCUS_DURATION] = minutes }
@@ -59,5 +63,8 @@ class PreferencesManager(private val context: Context) {
     }
     suspend fun setLastSessionDate(date: Long) {
         context.dataStore.edit { it[Keys.LAST_SESSION_DATE] = date }
+    }
+    suspend fun setCustomProfiles(profilesJson: String) {
+        context.dataStore.edit { it[Keys.CUSTOM_PROFILES] = profilesJson }
     }
 }
