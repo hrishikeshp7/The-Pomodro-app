@@ -3,19 +3,23 @@ package com.pomodoro.app.util
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.ToneGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.exp
+import kotlin.math.max
 import kotlin.math.sin
 
 /**
  * Manages sound feedback for the Pomodoro timer using AudioTrack
- * to generate rich, synthesized tones — no external audio files required.
+ * to synthesize rich, layered tones — no external audio files required.
+ *
+ * Every tone is additive-synthesized from a fundamental plus a handful of
+ * quieter harmonics with independent decay rates, which is what makes a
+ * synthesized note sound like a bell/chime instead of a flat lab-tone beep.
  */
 class SoundManager(private val context: Context) {
 
@@ -44,11 +48,11 @@ class SoundManager(private val context: Context) {
         // HapticManager handles the vibration.
     }
 
-    /** Soft single click — for pause */
+    /** Soft muted knock — for pause */
     fun playTimerPause() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 600.0, durationMs = 100, volume = 0.5f)
+            playChime(frequency = 480.0, durationMs = 160, volume = 0.5f, brightness = 0.35f)
         }
     }
 
@@ -56,94 +60,121 @@ class SoundManager(private val context: Context) {
     fun playTimerReset() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 800.0, durationMs = 80, volume = 0.6f)
-            Thread.sleep(40)
-            playTone(frequency = 500.0, durationMs = 120, volume = 0.6f)
+            playChime(frequency = 720.0, durationMs = 90, volume = 0.55f, brightness = 0.4f)
+            Thread.sleep(35)
+            playChime(frequency = 440.0, durationMs = 140, volume = 0.55f, brightness = 0.4f)
         }
     }
 
-    /** Triumphant ascending melody — for focus session complete */
+    /** Triumphant ascending bell melody — for focus session complete */
     fun playSessionComplete() {
         if (!soundEnabled) return
         scope.launch {
             val notes = listOf(
-                Pair(523.25, 120L),  // C5
-                Pair(659.25, 120L),  // E5
-                Pair(783.99, 120L),  // G5
-                Pair(1046.5, 280L)   // C6
+                Triple(523.25, 160L, 0.7f),  // C5
+                Triple(659.25, 160L, 0.75f), // E5
+                Triple(783.99, 160L, 0.8f),  // G5
+                Triple(1046.5, 420L, 0.85f)  // C6 — long resonant finish
             )
-            for ((freq, dur) in notes) {
-                playTone(frequency = freq, durationMs = dur.toInt(), volume = 0.75f)
-                Thread.sleep(30)
+            for ((freq, dur, vol) in notes) {
+                playChime(frequency = freq, durationMs = dur.toInt(), volume = vol, brightness = 0.55f)
+                Thread.sleep(45)
             }
         }
     }
 
-    /** Gentle soft chime — for break start */
+    /** Warm layered chime with a soft echo tail — for break start */
     fun playBreakStart() {
         if (!soundEnabled) return
         scope.launch {
             val notes = listOf(
-                Pair(880.0, 200L),   // A5
-                Pair(1108.7, 200L),  // C#6
-                Pair(1318.5, 350L)   // E6
+                Triple(659.25, 240L, 0.5f),  // E5
+                Triple(880.0, 260L, 0.55f),  // A5
+                Triple(1108.7, 420L, 0.6f)   // C#6 — long shimmering tail
             )
-            for ((freq, dur) in notes) {
-                playTone(frequency = freq, durationMs = dur.toInt(), volume = 0.55f, fadeOut = true)
-                Thread.sleep(50)
+            for ((freq, dur, vol) in notes) {
+                playChime(frequency = freq, durationMs = dur.toInt(), volume = vol, brightness = 0.6f)
+                Thread.sleep(60)
             }
         }
     }
 
-    /** Sharp single tick — for skip */
+    /** Crisp double-tap tick — for skip */
     fun playTimerSkip() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 1200.0, durationMs = 60, volume = 0.5f)
+            playChime(frequency = 950.0, durationMs = 55, volume = 0.45f, brightness = 0.3f)
         }
     }
 
-    /** Soft tick — for button UI interactions */
+    /** Soft, woody tick — for button UI interactions */
     fun playButtonClick() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 1000.0, durationMs = 30, volume = 0.3f)
+            playChime(frequency = 1050.0, durationMs = 35, volume = 0.28f, brightness = 0.2f)
         }
     }
 
     /**
-     * Synthesizes and plays a pure sine-wave tone.
-     * @param frequency Hz
-     * @param durationMs duration in milliseconds
-     * @param volume 0.0f..1.0f
-     * @param fadeOut apply a fade-out envelope for smoother ending
+     * Synthesizes and plays a bell/chime-like tone using additive synthesis:
+     * a fundamental plus decaying harmonic partials, shaped by a smooth
+     * raised-cosine attack and an exponential decay release. This is what
+     * separates a "chime" from a single flat sine beep.
+     *
+     * @param frequency fundamental frequency in Hz
+     * @param durationMs total duration in milliseconds
+     * @param volume 0.0f..1.0f overall loudness
+     * @param brightness 0.0f..1.0f how much of the higher harmonics are audible
      */
-    private fun playTone(
+    private fun playChime(
         frequency: Double,
         durationMs: Int,
         volume: Float,
-        fadeOut: Boolean = false
+        brightness: Float = 0.4f
     ) {
         val numSamples = (sampleRate * durationMs / 1000.0).toInt()
         val buffer = ShortArray(numSamples)
 
-        val angularFrequency = 2.0 * PI * frequency / sampleRate
+        // Fundamental + harmonics, each with its own weight and decay rate —
+        // higher partials fade faster, giving the tone a natural "ring".
+        data class Partial(val ratio: Double, val weight: Double, val decayRate: Double)
+        val partials = listOf(
+            Partial(1.0, 1.0, 2.2),
+            Partial(2.0, 0.30 * brightness.toDouble(), 4.5),
+            Partial(3.0, 0.14 * brightness.toDouble(), 6.5),
+            Partial(4.0, 0.06 * brightness.toDouble(), 8.5)
+        )
+        val totalWeight = partials.sumOf { it.weight }
         val maxAmplitude = Short.MAX_VALUE * volume
-        val fadeOutStart = numSamples * 0.7
-        val fadeOutDuration = numSamples * 0.3
-        val attackEnd = numSamples * 0.05
+
+        val attackSamples = max(1, (numSamples * 0.04).toInt())
+        val durationSec = durationMs / 1000.0
 
         for (i in 0 until numSamples) {
-            val sample = sin(angularFrequency * i)
-            val envelope = when {
-                fadeOut && i > fadeOutStart -> {
-                    val fadeProgress = (i - fadeOutStart) / fadeOutDuration
-                    1.0 - fadeProgress
-                }
-                i < attackEnd -> i / attackEnd // attack
-                else -> 1.0
+            val t = i.toDouble() / sampleRate
+            val progress = i.toDouble() / numSamples
+
+            // Raised-cosine (Hann-style) attack avoids the click/pop of a linear ramp.
+            val attackEnvelope = if (i < attackSamples) {
+                0.5 * (1.0 - kotlin.math.cos(PI * i / attackSamples))
+            } else 1.0
+
+            var sample = 0.0
+            for (p in partials) {
+                val partialDecay = exp(-p.decayRate * t / durationSec)
+                val angularFrequency = 2.0 * PI * frequency * p.ratio
+                sample += (p.weight / totalWeight) * partialDecay * sin(angularFrequency * t)
             }
-            buffer[i] = (sample * envelope * maxAmplitude).toInt().toShort()
+
+            // Gentle overall tail-off so the buffer ends at silence, not mid-wave.
+            val releaseEnvelope = if (progress > 0.85) {
+                1.0 - ((progress - 0.85) / 0.15)
+            } else 1.0
+
+            buffer[i] = (sample * attackEnvelope * releaseEnvelope * maxAmplitude)
+                .toInt()
+                .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                .toShort()
         }
 
         val minBufferSize = AudioTrack.getMinBufferSize(

@@ -1,9 +1,13 @@
 package com.pomodoro.app.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -15,8 +19,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.pomodoro.app.util.HapticManager
 import com.pomodoro.app.util.SoundManager
 
@@ -32,8 +38,11 @@ fun TimerControls(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animated scale for the main FAB — gives a spring "bounce" on press
-    var isMainPressed by remember { mutableStateOf(false) }
+    // Scale is driven from real press-interaction state (down/up), not a manual
+    // true-then-false flag flip in onClick — the latter never actually animates
+    // because Compose only observes the final value within a single click handler.
+    val mainInteractionSource = remember { MutableInteractionSource() }
+    val isMainPressed by mainInteractionSource.collectIsPressedAsState()
     val mainScale by animateFloatAsState(
         targetValue = if (isMainPressed) 0.90f else 1f,
         animationSpec = spring(
@@ -42,6 +51,41 @@ fun TimerControls(
         ),
         label = "main_btn_scale"
     )
+
+    // Same tactile press-bounce for the secondary buttons, so every control
+    // in the row responds consistently instead of only the FAB reacting.
+    val resetInteractionSource = remember { MutableInteractionSource() }
+    val isResetPressed by resetInteractionSource.collectIsPressedAsState()
+    val resetScale by animateFloatAsState(
+        targetValue = if (isResetPressed) 0.85f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "reset_btn_scale"
+    )
+    val skipInteractionSource = remember { MutableInteractionSource() }
+    val isSkipPressed by skipInteractionSource.collectIsPressedAsState()
+    val skipScale by animateFloatAsState(
+        targetValue = if (isSkipPressed) 0.85f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "skip_btn_scale"
+    )
+
+    // A full spin on the reset icon reinforces "starting over" at a glance.
+    val resetRotation = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    fun spinReset() {
+        coroutineScope.launch {
+            resetRotation.animateTo(
+                targetValue = resetRotation.value - 360f,
+                animationSpec = tween(durationMillis = 450)
+            )
+        }
+    }
 
     var showResetDialog by remember { mutableStateOf(false) }
 
@@ -58,10 +102,12 @@ fun TimerControls(
                 } else {
                     hapticManager.timerReset()
                     soundManager.playTimerReset()
+                    spinReset()
                     onReset()
                 }
             },
-            modifier = Modifier.size(52.dp),
+            interactionSource = resetInteractionSource,
+            modifier = Modifier.size(52.dp).scale(resetScale),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -69,7 +115,9 @@ fun TimerControls(
             Icon(
                 imageVector = Icons.Filled.Refresh,
                 contentDescription = "Reset",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier
+                    .size(24.dp)
+                    .rotate(resetRotation.value)
             )
         }
 
@@ -82,7 +130,6 @@ fun TimerControls(
 
         LargeFloatingActionButton(
             onClick = {
-                isMainPressed = true
                 if (isRunning) {
                     hapticManager.timerPause()
                     soundManager.playTimerPause()
@@ -92,8 +139,8 @@ fun TimerControls(
                     soundManager.playTimerStart()
                     onStart()
                 }
-                isMainPressed = false
             },
+            interactionSource = mainInteractionSource,
             containerColor = buttonColor,
             shape = CircleShape,
             modifier = Modifier
@@ -115,7 +162,8 @@ fun TimerControls(
                 soundManager.playTimerSkip()
                 onSkip()
             },
-            modifier = Modifier.size(52.dp),
+            interactionSource = skipInteractionSource,
+            modifier = Modifier.size(52.dp).scale(skipScale),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -139,6 +187,7 @@ fun TimerControls(
                         showResetDialog = false
                         hapticManager.timerReset()
                         soundManager.playTimerReset()
+                        spinReset()
                         onReset()
                     }
                 ) {

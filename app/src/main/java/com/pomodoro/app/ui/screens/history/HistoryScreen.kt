@@ -1,5 +1,6 @@
 package com.pomodoro.app.ui.screens.history
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,7 +57,8 @@ fun HistoryScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
-                        )
+                        ),
+                        modifier = Modifier.animateItem(placementSpec = tween(300))
                     ) {
                         Row(
                             modifier = Modifier
