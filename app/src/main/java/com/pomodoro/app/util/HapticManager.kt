@@ -73,6 +73,18 @@ class HapticManager(private val context: Context) {
         vibrate(VibrationEffect.createOneShot(20, 80))
     }
 
+    /**
+     * Soft double-tick — the haptic metronome pulse fired at the user's chosen
+     * interval while focusing. Deliberately quieter and shorter than every
+     * other pattern here (low amplitude, two short pulses) so it reads as a
+     * distinct, gentle cue rather than an alert that breaks concentration.
+     */
+    fun metronomeTick() {
+        val timings = longArrayOf(0, 25, 45, 20)
+        val amplitudes = intArrayOf(0, 55, 0, 35)
+        vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
+    }
+
     private fun vibrate(effect: VibrationEffect) {
         if (vibrator.hasVibrator()) {
             vibrator.vibrate(effect)

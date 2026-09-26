@@ -8,10 +8,14 @@ import com.pomodoro.app.data.db.AppDatabase
 import com.pomodoro.app.data.model.PomodoroSession
 import com.pomodoro.app.data.model.Task
 import com.pomodoro.app.data.repository.SessionRepository
+import com.pomodoro.app.util.FlipDetector
 import com.pomodoro.app.util.HapticManager
 import com.pomodoro.app.util.PreferencesManager
 import com.pomodoro.app.util.SoundManager
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
@@ -31,7 +35,26 @@ data class TimerUiState(
     val longBreakDuration: Int = 15,
     val currentStreak: Int = 0,
     val showSessionComplete: Boolean = false,
-    val soundEnabled: Boolean = true
+    val soundEnabled: Boolean = true,
+    val flipToFocusEnabled: Boolean = false,
+    val distractionTimerEnabled: Boolean = false,
+    val isFaceDown: Boolean = false,
+    val isDistracted: Boolean = false,
+    val distractedSeconds: Int = 0,
+    val hapticMetronomeEnabled: Boolean = false,
+    val hapticMetronomeIntervalMinutes: Int = 5,
+    val ambientDisplayEnabled: Boolean = false
+) {
+    /** True whenever the timer face should render as the minimal AOD-style display. */
+    val showAmbientDisplay: Boolean get() = (isFaceDown && !showSessionComplete) || ambientDisplayEnabled
+}
+
+private data class FocusFeatureSettings(
+    val flipToFocusEnabled: Boolean,
+    val distractionTimerEnabled: Boolean,
+    val hapticMetronomeEnabled: Boolean,
+    val hapticMetronomeIntervalMinutes: Int,
+    val ambientDisplayEnabled: Boolean
 )
 
 class TimerViewModel(application: Application) : AndroidViewModel(application) {
@@ -46,6 +69,13 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
 
     private var countDownTimer: CountDownTimer? = null
+    private var distractionJob: Job? = null
+
+    private val flipDetector = FlipDetector(
+        context = application,
+        onFaceDown = { onDeviceFaceDown() },
+        onFaceUp = { onDeviceFaceUp() }
+    )
 
     // Track global settings vs task specific settings
     private var globalFocusDuration = 25
@@ -112,6 +142,105 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 soundManager.setSoundEnabled(enabled)
             }
         }
+
+        // Observe flip-to-focus, distraction timer, haptic metronome and ambient display settings
+        viewModelScope.launch {
+            combine(
+                preferencesManager.flipToFocusEnabled,
+                preferencesManager.distractionTimerEnabled,
+                preferencesManager.hapticMetronomeEnabled,
+                preferencesManager.hapticMetronomeIntervalMinutes,
+                preferencesManager.ambientDisplayEnabled
+            ) { flip, distraction, metronome, interval, ambient ->
+                FocusFeatureSettings(flip, distraction, metronome, interval, ambient)
+            }.collect { settings ->
+                _uiState.value = _uiState.value.copy(
+                    flipToFocusEnabled = settings.flipToFocusEnabled,
+                    distractionTimerEnabled = settings.distractionTimerEnabled,
+                    hapticMetronomeEnabled = settings.hapticMetronomeEnabled,
+                    hapticMetronomeIntervalMinutes = settings.hapticMetronomeIntervalMinutes,
+                    ambientDisplayEnabled = settings.ambientDisplayEnabled
+                )
+                if (!settings.flipToFocusEnabled && _uiState.value.isFaceDown) {
+                    stopDistractionTimer()
+                    _uiState.value = _uiState.value.copy(isFaceDown = false)
+                }
+            }
+        }
+    }
+
+    /** Starts listening to the proximity sensor; call from the Timer screen's onResume. */
+    fun startFlipMonitoring() {
+        flipDetector.start()
+    }
+
+    /** Stops listening to the proximity sensor; call from the Timer screen's onPause. */
+    fun stopFlipMonitoring() {
+        flipDetector.stop()
+        if (_uiState.value.isFaceDown) {
+            stopDistractionTimer()
+            _uiState.value = _uiState.value.copy(isFaceDown = false)
+        }
+    }
+
+    private fun onDeviceFaceDown() {
+        val state = _uiState.value
+        if (!state.flipToFocusEnabled || state.isFaceDown) return
+
+        hapticManager.timerStart()
+        val wasDistracted = state.isDistracted
+        _uiState.value = state.copy(isFaceDown = true)
+        if (wasDistracted) {
+            stopDistractionTimer()
+        }
+        if (!_uiState.value.isRunning && !_uiState.value.showSessionComplete) {
+            startTimer()
+        }
+    }
+
+    private fun onDeviceFaceUp() {
+        val state = _uiState.value
+        if (!state.flipToFocusEnabled || !state.isFaceDown) return
+
+        _uiState.value = state.copy(isFaceDown = false)
+        if (state.isRunning) {
+            if (state.distractionTimerEnabled) {
+                startDistractionTimer()
+            } else {
+                pauseTimer()
+            }
+        }
+    }
+
+    private fun startDistractionTimer() {
+        pauseTimer()
+        distractionJob?.cancel()
+        _uiState.value = _uiState.value.copy(isDistracted = true, distractedSeconds = 0)
+        distractionJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                _uiState.value = _uiState.value.copy(distractedSeconds = _uiState.value.distractedSeconds + 1)
+            }
+        }
+    }
+
+    private fun stopDistractionTimer() {
+        distractionJob?.cancel()
+        distractionJob = null
+        if (_uiState.value.isDistracted) {
+            _uiState.value = _uiState.value.copy(isDistracted = false, distractedSeconds = 0)
+        }
+    }
+
+    private fun maybeFireHapticMetronome(secondsLeft: Int) {
+        val state = _uiState.value
+        if (!state.hapticMetronomeEnabled || state.isBreak) return
+        val intervalSeconds = state.hapticMetronomeIntervalMinutes * 60
+        if (intervalSeconds <= 0) return
+        val elapsed = state.totalSeconds - secondsLeft
+        if (elapsed > 0 && elapsed % intervalSeconds == 0) {
+            hapticManager.metronomeTick()
+        }
     }
 
     fun selectTask(task: Task?) {
@@ -145,11 +274,13 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         countDownTimer?.cancel()
         countDownTimer = object : CountDownTimer(millisLeft, 1000) {
             override fun onTick(millisUntilFinished: Long) {
+                val secondsLeft = (millisUntilFinished / 1000).toInt()
                 _uiState.value = _uiState.value.copy(
-                    timeLeftSeconds = (millisUntilFinished / 1000).toInt(),
+                    timeLeftSeconds = secondsLeft,
                     isRunning = true,
                     isPaused = false
                 )
+                maybeFireHapticMetronome(secondsLeft)
             }
 
             override fun onFinish() {
@@ -167,6 +298,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetTimer() {
         countDownTimer?.cancel()
+        stopDistractionTimer()
         val state = _uiState.value
         val totalSec = if (state.isBreak) {
             if (state.isLongBreak) state.longBreakDuration * 60
@@ -184,6 +316,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun skipToNext() {
         countDownTimer?.cancel()
+        stopDistractionTimer()
         moveToNextPhase()
     }
 
@@ -288,6 +421,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         countDownTimer?.cancel()
+        distractionJob?.cancel()
+        flipDetector.stop()
         hapticManager.release()
         soundManager.release()
     }

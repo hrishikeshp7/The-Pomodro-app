@@ -24,6 +24,11 @@ class PreferencesManager(private val context: Context) {
         val CURRENT_STREAK = intPreferencesKey("current_streak")
         val LAST_SESSION_DATE = longPreferencesKey("last_session_date")
         val CUSTOM_PROFILES = stringPreferencesKey("custom_profiles_json")
+        val FLIP_TO_FOCUS_ENABLED = booleanPreferencesKey("flip_to_focus_enabled")
+        val DISTRACTION_TIMER_ENABLED = booleanPreferencesKey("distraction_timer_enabled")
+        val HAPTIC_METRONOME_ENABLED = booleanPreferencesKey("haptic_metronome_enabled")
+        val HAPTIC_METRONOME_INTERVAL_MINUTES = intPreferencesKey("haptic_metronome_interval_minutes")
+        val AMBIENT_DISPLAY_ENABLED = booleanPreferencesKey("ambient_display_enabled")
     }
 
     val focusDuration: Flow<Int> = context.dataStore.data.map { it[Keys.FOCUS_DURATION] ?: 25 }
@@ -36,6 +41,11 @@ class PreferencesManager(private val context: Context) {
     val currentStreak: Flow<Int> = context.dataStore.data.map { it[Keys.CURRENT_STREAK] ?: 0 }
     val lastSessionDate: Flow<Long> = context.dataStore.data.map { it[Keys.LAST_SESSION_DATE] ?: 0L }
     val customProfiles: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PROFILES] ?: "[]" }
+    val flipToFocusEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.FLIP_TO_FOCUS_ENABLED] ?: false }
+    val distractionTimerEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.DISTRACTION_TIMER_ENABLED] ?: false }
+    val hapticMetronomeEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.HAPTIC_METRONOME_ENABLED] ?: false }
+    val hapticMetronomeIntervalMinutes: Flow<Int> = context.dataStore.data.map { it[Keys.HAPTIC_METRONOME_INTERVAL_MINUTES] ?: 5 }
+    val ambientDisplayEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.AMBIENT_DISPLAY_ENABLED] ?: false }
 
     suspend fun setFocusDuration(minutes: Int) {
         context.dataStore.edit { it[Keys.FOCUS_DURATION] = minutes }
@@ -66,5 +76,20 @@ class PreferencesManager(private val context: Context) {
     }
     suspend fun setCustomProfiles(profilesJson: String) {
         context.dataStore.edit { it[Keys.CUSTOM_PROFILES] = profilesJson }
+    }
+    suspend fun setFlipToFocusEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.FLIP_TO_FOCUS_ENABLED] = enabled }
+    }
+    suspend fun setDistractionTimerEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.DISTRACTION_TIMER_ENABLED] = enabled }
+    }
+    suspend fun setHapticMetronomeEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.HAPTIC_METRONOME_ENABLED] = enabled }
+    }
+    suspend fun setHapticMetronomeIntervalMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.HAPTIC_METRONOME_INTERVAL_MINUTES] = minutes }
+    }
+    suspend fun setAmbientDisplayEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.AMBIENT_DISPLAY_ENABLED] = enabled }
     }
 }

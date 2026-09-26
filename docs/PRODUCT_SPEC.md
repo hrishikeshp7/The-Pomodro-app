@@ -1,30 +1,6 @@
 # Pomodoro Focus — Product Specification
 
-## 1. Competitive Research Summary
-
-### Existing Apps Analyzed
-- **Forest** — Gamified focus timer with tree-growing mechanic. Strong engagement but heavy gamification.
-- **Focus To-Do** — Combines Pomodoro with task management. Feature-rich but cluttered UI.
-- **Tide** — Minimalist focus timer with ambient sounds. Beautiful but limited analytics.
-- **Be Focused** — Simple Pomodoro timer. Clean but lacks modern design language.
-
-### Key Insights
-- **Most apps over-gamify focus**, creating new distractions rather than reducing them.
-- **Analytics are often an afterthought** — basic session counts without meaningful patterns.
-- **Onboarding is commonly skipped**, leaving new users confused about the technique.
-- **Task integration is weak** — most apps treat tasks and timers as separate features.
-- **Break transitions are abrupt** — jarring notifications break the calm focus state.
-
-### Our Differentiators
-- Calm, distraction-free design as the primary feature
-- Thoughtful session transitions (gentle, not jarring)
-- Integrated task-timer workflow (select task → start session → track automatically)
-- Meaningful analytics that show patterns, not just numbers
-- Quick presets for different work styles (Classic 25/5, Deep Work 50/10, Quick Focus 15/3)
-
----
-
-## 2. Feature Prioritization
+## 1. Feature Prioritization
 
 ### Must Have (P0)
 - [x] Large, central countdown timer (primary focus element)
@@ -54,7 +30,7 @@
 
 ---
 
-## 3. UX Flow
+## 2. UX Flow
 
 ### First-Time User Flow
 ```
@@ -92,7 +68,7 @@ IDLE → [Start] → RUNNING → [Pause] → PAUSED → [Start] → RUNNING
 
 ---
 
-## 4. Screen-by-Screen UI Breakdown
+## 3. Screen-by-Screen UI Breakdown
 
 ### 4.1 Onboarding Screen (3 pages)
 - **Layout**: Full-screen, centered content, bottom navigation button
@@ -139,7 +115,7 @@ IDLE → [Start] → RUNNING → [Pause] → PAUSED → [Start] → RUNNING
 
 ---
 
-## 5. Design System
+## 4. Design System
 
 ### Color Palette
 | Token | Light | Dark | Usage |
@@ -201,7 +177,7 @@ IDLE → [Start] → RUNNING → [Pause] → PAUSED → [Start] → RUNNING
 
 ---
 
-## 6. Engineering Notes
+## 5. Engineering Notes
 
 ### Architecture
 - **Pattern**: MVVM (Model-View-ViewModel)
@@ -244,7 +220,7 @@ IDLE → [Start] → RUNNING → [Pause] → PAUSED → [Start] → RUNNING
 
 ---
 
-## 7. QA Acceptance Criteria
+## 6. QA Acceptance Criteria
 
 ### Timer Screen
 - [ ] Timer displays 25:00 by default

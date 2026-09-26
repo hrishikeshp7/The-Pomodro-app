@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pomodoro.app.data.model.DefaultPresets
 import com.pomodoro.app.data.model.TimerPreset
+import com.pomodoro.app.util.AmbientDisplayDetector
 import com.pomodoro.app.util.PreferencesManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,7 +22,21 @@ data class SettingsUiState(
     val presets: List<TimerPreset> = DefaultPresets.all,
     val customPresets: List<TimerPreset> = emptyList(),
     val isCreatingProfile: Boolean = false,
-    val newProfileName: String = ""
+    val newProfileName: String = "",
+    val flipToFocusEnabled: Boolean = false,
+    val distractionTimerEnabled: Boolean = false,
+    val hapticMetronomeEnabled: Boolean = false,
+    val hapticMetronomeIntervalMinutes: Int = 5,
+    val ambientDisplayEnabled: Boolean = false,
+    val systemAmbientDisplayDetected: Boolean = false
+)
+
+private data class FocusFeatureSettings(
+    val flipToFocusEnabled: Boolean,
+    val distractionTimerEnabled: Boolean,
+    val hapticMetronomeEnabled: Boolean,
+    val hapticMetronomeIntervalMinutes: Int,
+    val ambientDisplayEnabled: Boolean
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -30,6 +45,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _customPresets = MutableStateFlow<List<TimerPreset>>(emptyList())
     private val _isCreatingProfile = MutableStateFlow(false)
     private val _newProfileName = MutableStateFlow("")
+    private val systemAmbientDisplayDetected =
+        AmbientDisplayDetector.isSystemAmbientDisplayEnabled(application)
+
+    private val focusFeatureSettings = combine(
+        preferencesManager.flipToFocusEnabled,
+        preferencesManager.distractionTimerEnabled,
+        preferencesManager.hapticMetronomeEnabled,
+        preferencesManager.hapticMetronomeIntervalMinutes,
+        preferencesManager.ambientDisplayEnabled
+    ) { flip, distraction, metronome, interval, ambient ->
+        FocusFeatureSettings(flip, distraction, metronome, interval, ambient)
+    }
 
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesManager.focusDuration,
@@ -53,6 +80,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         state.copy(isCreatingProfile = isCreating)
     }.combine(_newProfileName) { state, name ->
         state.copy(newProfileName = name)
+    }.combine(focusFeatureSettings) { state, focusSettings ->
+        state.copy(
+            flipToFocusEnabled = focusSettings.flipToFocusEnabled,
+            distractionTimerEnabled = focusSettings.distractionTimerEnabled,
+            hapticMetronomeEnabled = focusSettings.hapticMetronomeEnabled,
+            hapticMetronomeIntervalMinutes = focusSettings.hapticMetronomeIntervalMinutes,
+            ambientDisplayEnabled = focusSettings.ambientDisplayEnabled,
+            systemAmbientDisplayDetected = systemAmbientDisplayDetected
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
     init {
@@ -107,6 +143,29 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setSoundEnabled(enabled: Boolean) {
         viewModelScope.launch { preferencesManager.setSoundEnabled(enabled) }
+    }
+
+    fun setFlipToFocusEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setFlipToFocusEnabled(enabled)
+            if (!enabled) preferencesManager.setDistractionTimerEnabled(false)
+        }
+    }
+
+    fun setDistractionTimerEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setDistractionTimerEnabled(enabled) }
+    }
+
+    fun setHapticMetronomeEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setHapticMetronomeEnabled(enabled) }
+    }
+
+    fun setHapticMetronomeIntervalMinutes(minutes: Int) {
+        viewModelScope.launch { preferencesManager.setHapticMetronomeIntervalMinutes(minutes) }
+    }
+
+    fun setAmbientDisplayEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesManager.setAmbientDisplayEnabled(enabled) }
     }
 
     fun applyPreset(preset: TimerPreset) {
