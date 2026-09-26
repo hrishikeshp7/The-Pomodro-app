@@ -27,6 +27,8 @@ val SurfaceLight = Color(0xFFF8FAF6)
 val OnSurfaceLight = Color(0xFF1A1C19)
 val SurfaceVariantLight = Color(0xFFE0E4DC)
 val OnSurfaceVariantLight = Color(0xFF434840)
+val SurfaceContainerLight = Color(0xFFEDF1E7)
+val OutlineVariantLight = Color(0xFFC4C8BE)
 
 // Dark theme
 val PrimaryDark = Color(0xFF95D5B2)
@@ -50,6 +52,8 @@ val SurfaceDark = Color(0xFF1A1C19)
 val OnSurfaceDark = Color(0xFFE2E3DE)
 val SurfaceVariantDark = Color(0xFF434840)
 val OnSurfaceVariantDark = Color(0xFFC3C8BC)
+val SurfaceContainerDark = Color(0xFF20231E)
+val OutlineVariantDark = Color(0xFF3A3F37)
 
 // Functional colors
 val TimerActive = Color(0xFF2D6A4F)

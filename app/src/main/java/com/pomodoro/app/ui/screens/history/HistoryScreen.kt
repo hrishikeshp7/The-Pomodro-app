@@ -56,7 +56,7 @@ fun HistoryScreen(
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
                         ),
                         modifier = Modifier.animateItem(placementSpec = tween(300))
                     ) {

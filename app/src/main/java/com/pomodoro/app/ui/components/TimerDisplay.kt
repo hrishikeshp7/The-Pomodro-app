@@ -1,6 +1,8 @@
 package com.pomodoro.app.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -87,7 +89,8 @@ fun TimerDisplay(
 
     val minutes = timeLeftSeconds / 60
     val seconds = timeLeftSeconds % 60
-    val timeText = String.format("%02d:%02d", minutes, seconds)
+    val minutesText = String.format("%02d", minutes)
+    val secondsText = String.format("%02d", seconds)
 
     Box(
         contentAlignment = Alignment.Center,
@@ -136,22 +139,33 @@ fun TimerDisplay(
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            AnimatedContent(
-                targetState = timeText,
-                transitionSpec = {
-                    (slideInVertically(animationSpec = tween(220)) { h -> h / 4 } + fadeIn(tween(220)))
-                        .togetherWith(slideOutVertically(animationSpec = tween(220)) { h -> -h / 4 } + fadeOut(tween(160)))
-                },
-                label = "time_text"
-            ) { text ->
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = 64.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+            val timeTextStyle = MaterialTheme.typography.displayLarge.copy(
+                fontWeight = FontWeight.Light,
+                fontSize = 64.sp
+            )
+            val digitTransitionSpec: AnimatedContentTransitionScope<String>.() -> ContentTransform = {
+                (slideInVertically(animationSpec = tween(220)) { h -> h / 4 } + fadeIn(tween(220)))
+                    .togetherWith(slideOutVertically(animationSpec = tween(220)) { h -> -h / 4 } + fadeOut(tween(160)))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Minutes and seconds animate independently so the minute digits
+                // only slide when the minute actually changes, instead of
+                // refreshing on every second tick.
+                AnimatedContent(
+                    targetState = minutesText,
+                    transitionSpec = digitTransitionSpec,
+                    label = "minutes_text"
+                ) { text ->
+                    Text(text = text, style = timeTextStyle, color = MaterialTheme.colorScheme.onBackground)
+                }
+                Text(text = ":", style = timeTextStyle, color = MaterialTheme.colorScheme.onBackground)
+                AnimatedContent(
+                    targetState = secondsText,
+                    transitionSpec = digitTransitionSpec,
+                    label = "seconds_text"
+                ) { text ->
+                    Text(text = text, style = timeTextStyle, color = MaterialTheme.colorScheme.onBackground)
+                }
             }
             Text(
                 text = if (isBreak) "Break Time" else "Focus",

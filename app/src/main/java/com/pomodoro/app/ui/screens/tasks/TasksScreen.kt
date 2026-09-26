@@ -135,7 +135,7 @@ fun TaskItem(
     val backgroundColor by animateColorAsState(
         targetValue = if (task.isCompleted)
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        else MaterialTheme.colorScheme.surface,
+        else MaterialTheme.colorScheme.surfaceContainer,
         label = "task_bg"
     )
 
