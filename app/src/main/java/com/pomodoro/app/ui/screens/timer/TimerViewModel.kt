@@ -169,12 +169,12 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Starts listening to the accelerometer; call from the Timer screen's onResume. */
+    /** Starts listening to the proximity sensor; call from the Timer screen's onResume. */
     fun startFlipMonitoring() {
         flipDetector.start()
     }
 
-    /** Stops listening to the accelerometer; call from the Timer screen's onPause. */
+    /** Stops listening to the proximity sensor; call from the Timer screen's onPause. */
     fun stopFlipMonitoring() {
         flipDetector.stop()
         if (_uiState.value.isFaceDown) {

@@ -36,8 +36,8 @@ fun TimerScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Flip-to-Focus needs the accelerometer running only while this screen is
-    // actually visible, so hook sensor start/stop to the screen's own lifecycle.
+    // Flip-to-Focus needs the proximity sensor running only while this screen
+    // is actually visible, so hook sensor start/stop to the screen's own lifecycle.
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
