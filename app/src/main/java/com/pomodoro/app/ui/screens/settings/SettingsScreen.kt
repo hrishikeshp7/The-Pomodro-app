@@ -3,6 +3,7 @@ package com.pomodoro.app.ui.screens.settings
 import android.content.Intent
 import android.net.Uri
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -186,6 +187,67 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Focus Modes
+        Text(
+            text = "Focus Modes",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        ) {
+            Column {
+                SettingToggle(
+                    label = "Flip to Focus",
+                    description = "Flip the phone face-down to start the timer and dim the screen. Pick it up to pause.",
+                    checked = uiState.flipToFocusEnabled,
+                    onCheckedChange = { viewModel.setFlipToFocusEnabled(it) }
+                )
+                AnimatedVisibility(visible = uiState.flipToFocusEnabled) {
+                    Column {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        SettingToggle(
+                            label = "Distraction Timer",
+                            description = "When picking the phone up, track distracted time instead of just pausing.",
+                            checked = uiState.distractionTimerEnabled,
+                            onCheckedChange = { viewModel.setDistractionTimerEnabled(it) }
+                        )
+                    }
+                }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingToggle(
+                    label = "Haptic Metronome",
+                    description = "A soft, unique vibration at a steady interval while focusing — no need to glance at the screen.",
+                    checked = uiState.hapticMetronomeEnabled,
+                    onCheckedChange = { viewModel.setHapticMetronomeEnabled(it) }
+                )
+                AnimatedVisibility(visible = uiState.hapticMetronomeEnabled) {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        MetronomeIntervalSetting(
+                            value = uiState.hapticMetronomeIntervalMinutes,
+                            onValueChange = { viewModel.setHapticMetronomeIntervalMinutes(it) }
+                        )
+                    }
+                }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingToggle(
+                    label = "Ambient Display Mode",
+                    description = if (uiState.systemAmbientDisplayDetected) {
+                        "Show an ultra-minimal, low-distraction timer face — matches your device's Always-On Display."
+                    } else {
+                        "Show an ultra-minimal, low-distraction timer face, styled like an Always-On Display."
+                    },
+                    checked = uiState.ambientDisplayEnabled,
+                    onCheckedChange = { viewModel.setAmbientDisplayEnabled(it) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         // App info and GitHub link
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -324,7 +386,8 @@ fun DurationSetting(
 fun SettingToggle(
     label: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    description: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -333,11 +396,66 @@ fun SettingToggle(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (description != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun MetronomeIntervalSetting(
+    value: Int,
+    onValueChange: (Int) -> Unit
+) {
+    val view = LocalView.current
+    val range = 1..30
+    var lastTickValue by remember { mutableIntStateOf(value) }
+
+    LaunchedEffect(value) {
+        lastTickValue = value
+    }
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Pulse every",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "$value min",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { rawValue ->
+                val snappedValue = rawValue.roundToInt().coerceIn(range.first, range.last)
+                if (snappedValue != lastTickValue) {
+                    lastTickValue = snappedValue
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    onValueChange(snappedValue)
+                }
+            },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = range.last - range.first - 1
+        )
     }
 }
