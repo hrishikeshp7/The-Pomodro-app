@@ -2,7 +2,7 @@
 
 A modern, minimal Pomodoro productivity app for Android built with Jetpack Compose and Material 3.
 
-> **Note:** This project is fully AI-generated — its code, features, and documentation were written by Claude (Anthropic).
+> **Note:** This project is fully AI-generated.
 
 ## Features
 
