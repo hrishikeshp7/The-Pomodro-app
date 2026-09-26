@@ -11,9 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pomodoro.app.ui.components.SessionCompleteDialog
 import com.pomodoro.app.ui.components.TimerControls
 import com.pomodoro.app.ui.components.TimerDisplay
 
@@ -83,7 +83,8 @@ fun TimerScreen(
         TimerDisplay(
             timeLeftSeconds = uiState.timeLeftSeconds,
             totalSeconds = uiState.totalSeconds,
-            isBreak = uiState.isBreak
+            isBreak = uiState.isBreak,
+            isRunning = uiState.isRunning
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -130,22 +131,12 @@ fun TimerScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    // Session complete dialog
+    // Session complete dialog — celebratory confetti burst instead of a plain alert
     if (uiState.showSessionComplete) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissSessionComplete() },
-            title = { Text("Session Complete! 🎉") },
-            text = {
-                Text(
-                    "Great focus! You've completed ${uiState.completedSessions} session${if (uiState.completedSessions != 1) "s" else ""} today.\nTime for a ${if (uiState.isLongBreak) "long " else ""}break.",
-                    textAlign = TextAlign.Center
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.dismissSessionComplete() }) {
-                    Text("Continue")
-                }
-            }
+        SessionCompleteDialog(
+            completedSessions = uiState.completedSessions,
+            isLongBreak = uiState.isLongBreak,
+            onDismiss = { viewModel.dismissSessionComplete() }
         )
     }
 }

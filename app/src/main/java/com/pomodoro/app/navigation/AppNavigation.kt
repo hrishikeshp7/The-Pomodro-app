@@ -1,7 +1,12 @@
 package com.pomodoro.app.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.padding
@@ -121,6 +126,23 @@ fun AppNavigation(
         Modifier
     }
 
+    // Lightweight fade + scale used between bottom-nav sibling tabs — cheap
+    // enough to stay smooth on low-end devices while still feeling alive.
+    val tabEnter = fadeIn(tween(220)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220))
+    val tabExit = fadeOut(tween(140))
+
+    // Tasks opens as a modal sheet over the timer, so it slides up from below.
+    val modalEnter = slideInVertically(
+        initialOffsetY = { fullHeight -> fullHeight / 6 },
+        animationSpec = tween(280)
+    ) + fadeIn(tween(280))
+    val modalExit = fadeOut(tween(120))
+    val modalPopEnter = fadeIn(tween(200))
+    val modalPopExit = slideOutVertically(
+        targetOffsetY = { fullHeight -> fullHeight / 6 },
+        animationSpec = tween(220)
+    ) + fadeOut(tween(220))
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -150,14 +172,13 @@ fun AppNavigation(
             }
         }
     ) { paddingValues ->
-        // Use direct, zero-duration transitions to completely avoid overlapping and lag
         NavHost(
             navController = navController,
             startDestination = if (startOnboarding) Screen.Onboarding.route else Screen.Timer.route,
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            enterTransition = { tabEnter },
+            exitTransition = { tabExit },
+            popEnterTransition = { tabEnter },
+            popExitTransition = { tabExit },
             modifier = Modifier
                 .padding(paddingValues)
                 .then(swipeModifier)
@@ -166,10 +187,10 @@ fun AppNavigation(
         ) {
             composable(
                 route = Screen.Onboarding.route,
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { fadeIn(tween(280)) },
+                exitTransition = { fadeOut(tween(280)) + scaleOut(targetScale = 1.04f, animationSpec = tween(280)) },
+                popEnterTransition = { fadeIn(tween(280)) },
+                popExitTransition = { fadeOut(tween(280)) }
             ) {
                 OnboardingScreen(
                     onComplete = {
@@ -182,10 +203,10 @@ fun AppNavigation(
             }
             composable(
                 route = Screen.Timer.route,
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { tabEnter },
+                exitTransition = { tabExit },
+                popEnterTransition = { tabEnter },
+                popExitTransition = { tabExit }
             ) {
                 TimerScreen(
                     onNavigateToTasks = {
@@ -196,10 +217,10 @@ fun AppNavigation(
             }
             composable(
                 route = Screen.Tasks.route,
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { modalEnter },
+                exitTransition = { modalExit },
+                popEnterTransition = { modalPopEnter },
+                popExitTransition = { modalPopExit }
             ) {
                 TasksScreen(
                     onTaskSelected = { task ->
@@ -210,28 +231,28 @@ fun AppNavigation(
             }
             composable(
                 route = Screen.History.route,
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { tabEnter },
+                exitTransition = { tabExit },
+                popEnterTransition = { tabEnter },
+                popExitTransition = { tabExit }
             ) {
                 HistoryScreen()
             }
             composable(
                 route = Screen.Analytics.route,
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { tabEnter },
+                exitTransition = { tabExit },
+                popEnterTransition = { tabEnter },
+                popExitTransition = { tabExit }
             ) {
                 AnalyticsScreen()
             }
             composable(
                 route = Screen.Settings.route,
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { tabEnter },
+                exitTransition = { tabExit },
+                popEnterTransition = { tabEnter },
+                popExitTransition = { tabExit }
             ) {
                 SettingsScreen()
             }

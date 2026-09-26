@@ -3,19 +3,31 @@ package com.pomodoro.app.util
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioTrack
-import android.media.ToneGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.exp
+import kotlin.math.max
 import kotlin.math.sin
+import kotlin.random.Random
 
 /**
- * Manages sound feedback for the Pomodoro timer using AudioTrack
- * to generate rich, synthesized tones — no external audio files required.
+ * Manages sound feedback for the Pomodoro timer using AudioTrack to
+ * synthesize two distinct, purpose-built timbres — no external audio files.
+ *
+ * This mirrors how real productivity/timer apps (and platform UI sound
+ * kits) actually split their sound palette:
+ *  - UI taps (button/pause/reset/skip) are short *percussive* sounds — a
+ *    filtered noise transient plus a low sine "thump", the same recipe
+ *    behind system click/tap sounds. They are not musical notes at all.
+ *  - Completion chimes (session complete/break start) use a "marimba"
+ *    timbre: a fundamental plus a bright, fast-decaying *inharmonic*
+ *    overtone near 4x the fundamental. That inharmonic overtone — not a
+ *    stacked harmonic series like a bell — is what reads as a pleasant
+ *    wooden mallet "ding" instead of a lab-tone beep.
  */
 class SoundManager(private val context: Context) {
 
@@ -44,108 +56,163 @@ class SoundManager(private val context: Context) {
         // HapticManager handles the vibration.
     }
 
-    /** Soft single click — for pause */
+    /** Soft, muted thock — for pause */
     fun playTimerPause() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 600.0, durationMs = 100, volume = 0.5f)
+            playBuffer(renderClick(pitchHz = 300.0, durationMs = 75, volume = 0.4f, crispness = 0.2f), 75)
         }
     }
 
-    /** Quick descending pair — for reset */
+    /** Quick descending double-tap — for reset */
     fun playTimerReset() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 800.0, durationMs = 80, volume = 0.6f)
-            Thread.sleep(40)
-            playTone(frequency = 500.0, durationMs = 120, volume = 0.6f)
+            playBuffer(renderClick(pitchHz = 650.0, durationMs = 45, volume = 0.4f, crispness = 0.55f), 45)
+            Thread.sleep(35)
+            playBuffer(renderClick(pitchHz = 380.0, durationMs = 70, volume = 0.42f, crispness = 0.35f), 70)
         }
     }
 
-    /** Triumphant ascending melody — for focus session complete */
+    /** Ascending marimba run — for focus session complete */
     fun playSessionComplete() {
         if (!soundEnabled) return
         scope.launch {
             val notes = listOf(
-                Pair(523.25, 120L),  // C5
-                Pair(659.25, 120L),  // E5
-                Pair(783.99, 120L),  // G5
-                Pair(1046.5, 280L)   // C6
+                Triple(523.25, 150L, 0.7f),  // C5
+                Triple(659.25, 150L, 0.75f), // E5
+                Triple(783.99, 150L, 0.8f),  // G5
+                Triple(1046.5, 320L, 0.85f)  // C6 — resonant finish
             )
-            for ((freq, dur) in notes) {
-                playTone(frequency = freq, durationMs = dur.toInt(), volume = 0.75f)
-                Thread.sleep(30)
+            for ((freq, dur, vol) in notes) {
+                playBuffer(renderMarimba(frequency = freq, durationMs = dur.toInt(), volume = vol), dur.toInt())
+                Thread.sleep(40)
             }
         }
     }
 
-    /** Gentle soft chime — for break start */
+    /** Gentle marimba arpeggio — for break start */
     fun playBreakStart() {
         if (!soundEnabled) return
         scope.launch {
             val notes = listOf(
-                Pair(880.0, 200L),   // A5
-                Pair(1108.7, 200L),  // C#6
-                Pair(1318.5, 350L)   // E6
+                Triple(659.25, 200L, 0.5f),  // E5
+                Triple(880.0, 200L, 0.55f),  // A5
+                Triple(1108.7, 340L, 0.55f)  // C#6
             )
-            for ((freq, dur) in notes) {
-                playTone(frequency = freq, durationMs = dur.toInt(), volume = 0.55f, fadeOut = true)
-                Thread.sleep(50)
+            for ((freq, dur, vol) in notes) {
+                playBuffer(renderMarimba(frequency = freq, durationMs = dur.toInt(), volume = vol), dur.toInt())
+                Thread.sleep(55)
             }
         }
     }
 
-    /** Sharp single tick — for skip */
+    /** Crisp single tap — for skip */
     fun playTimerSkip() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 1200.0, durationMs = 60, volume = 0.5f)
+            playBuffer(renderClick(pitchHz = 1050.0, durationMs = 40, volume = 0.35f, crispness = 0.7f), 40)
         }
     }
 
-    /** Soft tick — for button UI interactions */
+    /** Light, high tap — for button UI interactions */
     fun playButtonClick() {
         if (!soundEnabled) return
         scope.launch {
-            playTone(frequency = 1000.0, durationMs = 30, volume = 0.3f)
+            playBuffer(renderClick(pitchHz = 900.0, durationMs = 30, volume = 0.22f, crispness = 0.75f), 30)
         }
     }
 
     /**
-     * Synthesizes and plays a pure sine-wave tone.
-     * @param frequency Hz
-     * @param durationMs duration in milliseconds
-     * @param volume 0.0f..1.0f
-     * @param fadeOut apply a fade-out envelope for smoother ending
+     * Renders a short percussive UI tap: a band-limited noise transient
+     * (the "tick") layered with a low sine "thump" (the body/weight), both
+     * with a hard instant attack and a fast exponential decay — the same
+     * shape as a real click/tap sound, not a musical tone.
+     *
+     * @param pitchHz frequency of the low thump component
+     * @param crispness 0.0f..1.0f — higher lets more high-frequency noise through
      */
-    private fun playTone(
-        frequency: Double,
+    private fun renderClick(
+        pitchHz: Double,
         durationMs: Int,
         volume: Float,
-        fadeOut: Boolean = false
-    ) {
-        val numSamples = (sampleRate * durationMs / 1000.0).toInt()
+        crispness: Float
+    ): ShortArray {
+        val numSamples = max(1, (sampleRate * durationMs / 1000.0).toInt())
         val buffer = ShortArray(numSamples)
-
-        val angularFrequency = 2.0 * PI * frequency / sampleRate
         val maxAmplitude = Short.MAX_VALUE * volume
-        val fadeOutStart = numSamples * 0.7
-        val fadeOutDuration = numSamples * 0.3
-        val attackEnd = numSamples * 0.05
+        val durationSec = durationMs / 1000.0
+
+        val noiseCutoffHz = 1500.0 + crispness * 6000.0
+        val lpCoeff = exp(-2.0 * PI * noiseCutoffHz / sampleRate)
+        var lpState = 0.0
+        val random = Random(System.nanoTime())
+
+        val thumpDecayRate = 18.0
+        val noiseDecayRate = 32.0
 
         for (i in 0 until numSamples) {
-            val sample = sin(angularFrequency * i)
-            val envelope = when {
-                fadeOut && i > fadeOutStart -> {
-                    val fadeProgress = (i - fadeOutStart) / fadeOutDuration
-                    1.0 - fadeProgress
-                }
-                i < attackEnd -> i / attackEnd // attack
-                else -> 1.0
-            }
-            buffer[i] = (sample * envelope * maxAmplitude).toInt().toShort()
-        }
+            val t = i.toDouble() / sampleRate
 
+            val thump = sin(2.0 * PI * pitchHz * t) * exp(-thumpDecayRate * t / durationSec)
+
+            val raw = random.nextDouble(-1.0, 1.0)
+            lpState = lpState * lpCoeff + raw * (1.0 - lpCoeff)
+            val noise = lpState * exp(-noiseDecayRate * t / durationSec)
+
+            val mix = thump * 0.55 + noise * (0.45 + 0.3 * crispness)
+            buffer[i] = (mix * maxAmplitude)
+                .toInt()
+                .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                .toShort()
+        }
+        return buffer
+    }
+
+    /**
+     * Renders a marimba-like mallet note: a fundamental plus a bright,
+     * fast-decaying *inharmonic* overtone near 3.93x the fundamental (the
+     * real acoustic ratio for a marimba bar's second mode), giving it a
+     * "wood" character instead of the stacked harmonic series of a bell.
+     */
+    private fun renderMarimba(
+        frequency: Double,
+        durationMs: Int,
+        volume: Float
+    ): ShortArray {
+        val numSamples = max(1, (sampleRate * durationMs / 1000.0).toInt())
+        val buffer = ShortArray(numSamples)
+        val maxAmplitude = Short.MAX_VALUE * volume
+        val durationSec = durationMs / 1000.0
+
+        data class Partial(val ratio: Double, val weight: Double, val decayRate: Double)
+        val partials = listOf(
+            Partial(1.0, 1.0, 3.0),
+            Partial(3.93, 0.28, 14.0),
+            Partial(9.4, 0.07, 26.0)
+        )
+        val totalWeight = partials.sumOf { it.weight }
+        val attackSamples = max(1, (numSamples * 0.01).toInt()) // near-instant mallet strike
+
+        for (i in 0 until numSamples) {
+            val t = i.toDouble() / sampleRate
+            val attackEnvelope = if (i < attackSamples) i.toDouble() / attackSamples else 1.0
+
+            var sample = 0.0
+            for (p in partials) {
+                val decay = exp(-p.decayRate * t / durationSec)
+                sample += (p.weight / totalWeight) * decay * sin(2.0 * PI * frequency * p.ratio * t)
+            }
+
+            buffer[i] = (sample * attackEnvelope * maxAmplitude)
+                .toInt()
+                .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                .toShort()
+        }
+        return buffer
+    }
+
+    private fun playBuffer(buffer: ShortArray, durationMs: Int) {
         val minBufferSize = AudioTrack.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_OUT_MONO,

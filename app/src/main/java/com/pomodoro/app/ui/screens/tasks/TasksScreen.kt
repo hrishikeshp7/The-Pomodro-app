@@ -1,6 +1,7 @@
 package com.pomodoro.app.ui.screens.tasks
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -64,7 +65,8 @@ fun TasksScreen(
                     task = task,
                     onToggle = { viewModel.toggleTask(task) },
                     onDelete = { viewModel.deleteTask(task) },
-                    onSelect = { onTaskSelected(task) }
+                    onSelect = { onTaskSelected(task) },
+                    modifier = Modifier.animateItem(placementSpec = tween(300))
                 )
             }
         }
@@ -127,7 +129,8 @@ fun TaskItem(
     task: Task,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
-    onSelect: () -> Unit
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val backgroundColor by animateColorAsState(
         targetValue = if (task.isCompleted)
@@ -139,7 +142,8 @@ fun TaskItem(
     Card(
         onClick = onSelect,
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
     ) {
         Row(
             modifier = Modifier
