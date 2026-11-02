@@ -38,7 +38,7 @@ class SoundManager(private val context: Context) {
     private var soundEnabled = true
 
     private val audioAttributes = AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
 
@@ -50,6 +50,62 @@ class SoundManager(private val context: Context) {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+
+    // Pre-allocated static AudioTracks for instant, zero-latency playback aligned with haptics
+    private val thockTrack by lazy {
+        createStaticTrack(renderClick(pitchHz = 300.0, durationMs = 75, volume = 0.4f, crispness = 0.2f))
+    }
+
+    private val buttonClickTrack by lazy {
+        createStaticTrack(renderClick(pitchHz = 900.0, durationMs = 30, volume = 0.22f, crispness = 0.75f))
+    }
+
+    private val skipTrack by lazy {
+        createStaticTrack(renderClick(pitchHz = 1050.0, durationMs = 40, volume = 0.35f, crispness = 0.7f))
+    }
+
+    private val resetTrack by lazy {
+        val tap1 = renderClick(pitchHz = 650.0, durationMs = 45, volume = 0.4f, crispness = 0.55f)
+        val gap = (sampleRate * 35 / 1000.0).toInt()
+        val tap2 = renderClick(pitchHz = 380.0, durationMs = 70, volume = 0.42f, crispness = 0.35f)
+        val combined = ShortArray(tap1.size + gap + tap2.size)
+        System.arraycopy(tap1, 0, combined, 0, tap1.size)
+        System.arraycopy(tap2, 0, combined, tap1.size + gap, tap2.size)
+        createStaticTrack(combined)
+    }
+
+    private val sessionCompleteTrack by lazy {
+        val notes = listOf(
+            Triple(523.25, 150, 0.7f),  // C5
+            Triple(659.25, 150, 0.75f), // E5
+            Triple(783.99, 150, 0.8f),  // G5
+            Triple(1046.5, 320, 0.85f)  // C6 — resonant finish
+        )
+        createStaticTrack(renderMelody(notes, gapMs = 40))
+    }
+
+    private val breakStartTrack by lazy {
+        val notes = listOf(
+            Triple(659.25, 200, 0.5f),  // E5
+            Triple(880.0, 200, 0.55f),  // A5
+            Triple(1108.7, 340, 0.55f)  // C#6
+        )
+        createStaticTrack(renderMelody(notes, gapMs = 55))
+    }
+
+    init {
+        // Pre-warm audio tracks asynchronously so first button press has 0ms initialization latency
+        scope.launch {
+            try {
+                thockTrack
+                buttonClickTrack
+                skipTrack
+                resetTrack
+                sessionCompleteTrack
+                breakStartTrack
+            } catch (_: Exception) {}
+        }
+    }
 
     fun setSoundEnabled(enabled: Boolean) {
         soundEnabled = enabled
@@ -74,71 +130,40 @@ class SoundManager(private val context: Context) {
         playTimerPause()
     }
 
-    /** Soft, muted thock — for pause */
+    /** Soft, muted thock — for pause (instantaneous playback on caller thread) */
     fun playTimerPause() {
         if (!canPlaySound()) return
-        scope.launch {
-            playBuffer(renderClick(pitchHz = 300.0, durationMs = 75, volume = 0.4f, crispness = 0.2f), 75)
-        }
+        playStaticTrack(thockTrack)
     }
 
     /** Quick descending double-tap — for reset */
     fun playTimerReset() {
         if (!canPlaySound()) return
-        scope.launch {
-            playBuffer(renderClick(pitchHz = 650.0, durationMs = 45, volume = 0.4f, crispness = 0.55f), 45)
-            Thread.sleep(35)
-            playBuffer(renderClick(pitchHz = 380.0, durationMs = 70, volume = 0.42f, crispness = 0.35f), 70)
-        }
+        playStaticTrack(resetTrack)
     }
 
     /** Ascending marimba run — for focus session complete */
     fun playSessionComplete() {
         if (!canPlaySound()) return
-        scope.launch {
-            val notes = listOf(
-                Triple(523.25, 150L, 0.7f),  // C5
-                Triple(659.25, 150L, 0.75f), // E5
-                Triple(783.99, 150L, 0.8f),  // G5
-                Triple(1046.5, 320L, 0.85f)  // C6 — resonant finish
-            )
-            for ((freq, dur, vol) in notes) {
-                playBuffer(renderMarimba(frequency = freq, durationMs = dur.toInt(), volume = vol), dur.toInt())
-                Thread.sleep(40)
-            }
-        }
+        playStaticTrack(sessionCompleteTrack)
     }
 
     /** Gentle marimba arpeggio — for break start */
     fun playBreakStart() {
         if (!canPlaySound()) return
-        scope.launch {
-            val notes = listOf(
-                Triple(659.25, 200L, 0.5f),  // E5
-                Triple(880.0, 200L, 0.55f),  // A5
-                Triple(1108.7, 340L, 0.55f)  // C#6
-            )
-            for ((freq, dur, vol) in notes) {
-                playBuffer(renderMarimba(frequency = freq, durationMs = dur.toInt(), volume = vol), dur.toInt())
-                Thread.sleep(55)
-            }
-        }
+        playStaticTrack(breakStartTrack)
     }
 
     /** Crisp single tap — for skip */
     fun playTimerSkip() {
         if (!canPlaySound()) return
-        scope.launch {
-            playBuffer(renderClick(pitchHz = 1050.0, durationMs = 40, volume = 0.35f, crispness = 0.7f), 40)
-        }
+        playStaticTrack(skipTrack)
     }
 
     /** Light, high tap — for button UI interactions */
     fun playButtonClick() {
         if (!canPlaySound()) return
-        scope.launch {
-            playBuffer(renderClick(pitchHz = 900.0, durationMs = 30, volume = 0.22f, crispness = 0.75f), 30)
-        }
+        playStaticTrack(buttonClickTrack)
     }
 
     /**
@@ -230,32 +255,68 @@ class SoundManager(private val context: Context) {
         return buffer
     }
 
-    private fun playBuffer(buffer: ShortArray, durationMs: Int) {
+    private fun renderMelody(notes: List<Triple<Double, Int, Float>>, gapMs: Int): ShortArray {
+        val gapSamples = (sampleRate * gapMs / 1000.0).toInt()
+        val renderedNotes = notes.map { (freq, dur, vol) ->
+            renderMarimba(frequency = freq, durationMs = dur, volume = vol)
+        }
+        val totalLength = renderedNotes.sumOf { it.size } + max(0, notes.size - 1) * gapSamples
+        val result = ShortArray(totalLength)
+        var offset = 0
+        for (i in renderedNotes.indices) {
+            val note = renderedNotes[i]
+            System.arraycopy(note, 0, result, offset, note.size)
+            offset += note.size
+            if (i < renderedNotes.size - 1) {
+                offset += gapSamples
+            }
+        }
+        return result
+    }
+
+    private fun createStaticTrack(buffer: ShortArray): AudioTrack {
         val minBufferSize = AudioTrack.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        val bufferSize = maxOf(buffer.size * 2, minBufferSize)
-
-        val audioTrack = AudioTrack.Builder()
+        val bufferSizeBytes = maxOf(buffer.size * 2, minBufferSize)
+        val track = AudioTrack.Builder()
             .setAudioAttributes(audioAttributes)
             .setAudioFormat(audioFormat)
-            .setBufferSizeInBytes(bufferSize)
+            .setBufferSizeInBytes(bufferSizeBytes)
             .setTransferMode(AudioTrack.MODE_STATIC)
+            .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             .build()
+        track.write(buffer, 0, buffer.size)
+        return track
+    }
 
+    private fun playStaticTrack(track: AudioTrack) {
         try {
-            audioTrack.write(buffer, 0, buffer.size)
-            audioTrack.play()
-            Thread.sleep(durationMs.toLong() + 20)
-        } finally {
-            audioTrack.stop()
-            audioTrack.release()
-        }
+            synchronized(track) {
+                if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                    track.stop()
+                }
+                track.reloadStaticData()
+                track.play()
+            }
+        } catch (_: Exception) {}
     }
 
     fun release() {
-        // Coroutine scope handles cleanup automatically
+        listOf(
+            thockTrack,
+            buttonClickTrack,
+            skipTrack,
+            resetTrack,
+            sessionCompleteTrack,
+            breakStartTrack
+        ).forEach { track ->
+            try {
+                track.stop()
+                track.release()
+            } catch (_: Exception) {}
+        }
     }
 }
