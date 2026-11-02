@@ -1,8 +1,10 @@
 package com.pomodoro.app.util
 
+import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,19 +48,35 @@ class SoundManager(private val context: Context) {
         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
         .build()
 
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+
     fun setSoundEnabled(enabled: Boolean) {
         soundEnabled = enabled
     }
 
-    /** No sound played when timer starts, only haptics will be used now */
+    private fun isDndActive(): Boolean {
+        val nm = notificationManager ?: return false
+        val filter = nm.currentInterruptionFilter
+        return filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+               filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+    }
+
+    private fun canPlaySound(): Boolean {
+        if (!soundEnabled) return false
+        if (isDndActive()) return false
+        val am = audioManager ?: return true
+        return am.ringerMode == AudioManager.RINGER_MODE_NORMAL
+    }
+
+    /** Soft, muted thock — for timer start (matches pause for physical switch feel) */
     fun playTimerStart() {
-        // User requested no sound, just soft haptic vibration.
-        // HapticManager handles the vibration.
+        playTimerPause()
     }
 
     /** Soft, muted thock — for pause */
     fun playTimerPause() {
-        if (!soundEnabled) return
+        if (!canPlaySound()) return
         scope.launch {
             playBuffer(renderClick(pitchHz = 300.0, durationMs = 75, volume = 0.4f, crispness = 0.2f), 75)
         }
@@ -66,7 +84,7 @@ class SoundManager(private val context: Context) {
 
     /** Quick descending double-tap — for reset */
     fun playTimerReset() {
-        if (!soundEnabled) return
+        if (!canPlaySound()) return
         scope.launch {
             playBuffer(renderClick(pitchHz = 650.0, durationMs = 45, volume = 0.4f, crispness = 0.55f), 45)
             Thread.sleep(35)
@@ -76,7 +94,7 @@ class SoundManager(private val context: Context) {
 
     /** Ascending marimba run — for focus session complete */
     fun playSessionComplete() {
-        if (!soundEnabled) return
+        if (!canPlaySound()) return
         scope.launch {
             val notes = listOf(
                 Triple(523.25, 150L, 0.7f),  // C5
@@ -93,7 +111,7 @@ class SoundManager(private val context: Context) {
 
     /** Gentle marimba arpeggio — for break start */
     fun playBreakStart() {
-        if (!soundEnabled) return
+        if (!canPlaySound()) return
         scope.launch {
             val notes = listOf(
                 Triple(659.25, 200L, 0.5f),  // E5
@@ -109,7 +127,7 @@ class SoundManager(private val context: Context) {
 
     /** Crisp single tap — for skip */
     fun playTimerSkip() {
-        if (!soundEnabled) return
+        if (!canPlaySound()) return
         scope.launch {
             playBuffer(renderClick(pitchHz = 1050.0, durationMs = 40, volume = 0.35f, crispness = 0.7f), 40)
         }
@@ -117,7 +135,7 @@ class SoundManager(private val context: Context) {
 
     /** Light, high tap — for button UI interactions */
     fun playButtonClick() {
-        if (!soundEnabled) return
+        if (!canPlaySound()) return
         scope.launch {
             playBuffer(renderClick(pitchHz = 900.0, durationMs = 30, volume = 0.22f, crispness = 0.75f), 30)
         }

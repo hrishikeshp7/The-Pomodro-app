@@ -1,6 +1,8 @@
 package com.pomodoro.app.util
 
+import android.app.NotificationManager
 import android.content.Context
+import android.media.AudioManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -85,7 +87,24 @@ class HapticManager(private val context: Context) {
         vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
     }
 
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+
+    private fun isDndActive(): Boolean {
+        val nm = notificationManager ?: return false
+        val filter = nm.currentInterruptionFilter
+        return filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+               filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+    }
+
+    private fun canVibrate(): Boolean {
+        if (isDndActive()) return false
+        val am = audioManager ?: return true
+        return am.ringerMode != AudioManager.RINGER_MODE_SILENT
+    }
+
     private fun vibrate(effect: VibrationEffect) {
+        if (!canVibrate()) return
         if (vibrator.hasVibrator()) {
             vibrator.vibrate(effect)
         }
